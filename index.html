@@ -8,9 +8,9 @@
 <section id="my" class="page"><h1 class="title">MY CROWN</h1><div class="card muted">会員QR・Crown coin・クーポン機能は次の実装で接続します。</div></section>
 </main><nav class="nav"><button class="active" data-p="home" onclick="show('home')"><span class="ico">⌂</span>HOME</button><button data-p="tournament" onclick="show('tournament')"><span class="ico">♠</span>トーナメント</button><button data-p="ring" onclick="show('ring')"><span class="ico">♣</span>RING</button><button data-p="ranking" onclick="show('ranking')"><span class="ico">♛</span>ランキング</button><button data-p="my" onclick="show('my')"><span class="ico">♦</span>MY CROWN</button></nav></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>
-const URL='https://rswptjjadknxvbemvrzu.supabase.co'; let sb=null;
+const SUPABASE_URL='https://rswptjjadknxvbemvrzu.supabase.co'; let sb=null;
 function cfg(){try{return JSON.parse(localStorage.getItem('crown_supabase_config')||'null')}catch(e){return null}}
-function init(){const c=cfg();if(!c?.key)return false;sb=supabase.createClient(URL,c.key);return true}
+function init(){const c=cfg();if(!c?.key)return false;sb=supabase.createClient(SUPABASE_URL,c.key);return true}
 function setup(){const key=prompt('初回のみ：Supabase Publishable key（sb_publishable_...）を入力してください');if(!key)return false;localStorage.setItem('crown_supabase_config',JSON.stringify({url:URL,key:key.trim()}));return init()}
 function show(id){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.p===id));if(id==='ring')loadRing();if(id==='tournament')loadTournaments()}
 function esc(v){return String(v??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
