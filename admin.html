@@ -66,8 +66,16 @@ async function openMemberBill(m){
  activeBillTab=r.data?.[0]||null;if(!activeBillTab){const c=await sb.from('customer_tabs').insert({member_id:m.id,status:'open',opened_by:(await sb.auth.getUser()).data.user?.id}).select().single();if(c.error)return alert(c.error.message);activeBillTab=c.data}
  await renderAdminBill();
 }
+async function normalizeLegacyCcEligibility(){
+ if(!activeBillTab)return;
+ const r=await sb.from('tab_items').select('id,item_name,source,cc_eligible,voided').eq('tab_id',activeBillTab.id);
+ if(r.error)return;
+ const legacy=(r.data||[]).filter(x=>!x.voided&&x.cc_eligible!==true&&(x.source==='ring'||String(x.item_name||'').includes('リング差額')));
+ if(legacy.length)await Promise.all(legacy.map(x=>sb.from('tab_items').update({cc_eligible:true}).eq('id',x.id)));
+}
 async function renderAdminBill(){
  if(!activeBillTab)return;
+ await normalizeLegacyCcEligibility();
  const d=document.getElementById('memberDetail');
  const r=await sb.from('tab_items').select('*').eq('tab_id',activeBillTab.id).order('created_at');
  const items=(r.data||[]),active=items.filter(x=>!x.voided),total=active.reduce((s,x)=>s+Number(x.amount||0),0);
@@ -125,4 +133,4 @@ function openMemberBillFromSearch(id){const x=membersCache.find(v=>String(v.id)=
 function openMember(id){const x=membersCache.find(v=>String(v.id)===String(id));if(!x)return;const d=document.getElementById('memberDetail'),name=memberVal(x,['display_name','name','nickname'])||'MEMBER',rawNo=memberVal(x,['member_number','member_no']),no=rawNo!==''?String(rawNo).padStart(4,'0'):String(x.id).slice(0,8);d.innerHTML='<div class="card"><div class="row"><div><div class="gold" style="font-size:12px">THE CROWN MEMBER</div><h2 style="margin:5px 0">'+esc(name)+'</h2><div class="muted">MEMBER ID '+esc(no)+'</div></div><button class="btn2" onclick="closeMember()">閉じる</button></div><div id="adminMemberQr" style="width:220px;height:220px;background:#fff;border-radius:14px;padding:12px;margin:20px auto;display:grid;place-items:center"></div><p class="muted" style="text-align:center">スタッフ読み取り用QR</p></div>';d.classList.remove('hidden');const q=document.getElementById('adminMemberQr');if(window.QRCode)new QRCode(q,{text:'CROWN:'+x.id,width:196,height:196,correctLevel:QRCode.CorrectLevel.M});else q.innerHTML='<span style="color:#111">'+esc(String(x.id))+'</span>';d.scrollIntoView({behavior:'smooth',block:'start'})}
 function closeMember(){document.getElementById('memberDetail').classList.add('hidden')}
 boot();setTimeout(startOrderRealtime,1200);
-</script><div style="position:fixed;right:10px;bottom:10px;z-index:9999;font-size:10px;color:#cfa83b;opacity:.65">ADMIN v20260926-1840</div><script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script><script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script></body></html>
+</script><div style="position:fixed;right:10px;bottom:10px;z-index:9999;font-size:10px;color:#cfa83b;opacity:.65">ADMIN v20260926-1850</div><script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script><script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script></body></html>
