@@ -134,7 +134,7 @@ async function loadTicketTypes(){const h=document.getElementById('ticketTypesLis
 async function openTicketGrant(ticketTypeId,ticketName,months){
  const q=prompt('付与する会員の名前または会員番号を入力してください');if(!q)return;
  const r=await sb.from('members').select('*').limit(500);if(r.error)return alert(r.error.message);
- const s=String(q).trim().toLowerCase(),hits=(r.data||[]).filter(x=>(String(x.display_name||x.nickname||'')+' '+String(x.member_number||'')).toLowerCase().includes(s));
+ const s=String(q).trim().toLowerCase(),digits=s.replace(/\D/g,''),hits=(r.data||[]).filter(x=>{const name=String(x.display_name||x.nickname||'').toLowerCase(),raw=String(x.member_number??x.member_no??''),padded=raw?raw.padStart(4,'0'):'';return name.includes(s)||raw===s||padded===s||(digits&&String(Number(raw))===String(Number(digits)));});
  if(!hits.length)return alert('会員が見つかりません。');
  let m=hits[0];
  if(hits.length>1){const list=hits.slice(0,20).map((x,i)=>(i+1)+'：'+(x.display_name||x.nickname||'MEMBER')+' #'+String(x.member_number||'').padStart(4,'0')).join('\n');const n=Number(prompt('会員を選択してください。\n\n'+list));m=hits[n-1];if(!m)return}
@@ -214,4 +214,4 @@ async function grantMemberCoupon(memberId){const typeId=document.getElementById(
 async function cancelMemberCoupon(id,memberId){if(!confirm('このチケットの付与を取り消しますか？'))return;let r=await sb.from('member_coupons').delete().eq('id',id);if(r.error)return alert('取消エラー：'+r.error.message);loadMemberHoldings(memberId)}
 function closeMember(){document.getElementById('memberDetail').classList.add('hidden')}
 boot();setTimeout(startOrderRealtime,1200);
-</script><div style="position:fixed;right:10px;bottom:10px;z-index:9999;font-size:10px;color:#cfa83b;opacity:.65">ADMIN v20260926-2320</div><script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script><script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script></body></html>
+</script><div style="position:fixed;right:10px;bottom:10px;z-index:9999;font-size:10px;color:#cfa83b;opacity:.65">ADMIN v20260926-2330</div><script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script><script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script></body></html>
