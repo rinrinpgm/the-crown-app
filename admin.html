@@ -67,14 +67,36 @@ async function openMemberBill(m){
  await renderAdminBill();
 }
 async function renderAdminBill(){
- if(!activeBillTab)return;const d=document.getElementById('memberDetail');const r=await sb.from('tab_items').select('*').eq('tab_id',activeBillTab.id).order('created_at');const items=(r.data||[]),active=items.filter(x=>!x.voided),total=active.reduce((s,x)=>s+Number(x.amount||0),0);
- let old=document.getElementById('adminBillPanel');if(old)old.remove();const panel=document.createElement('div');panel.id='adminBillPanel';panel.className='card';panel.innerHTML='<div class="row"><div><div class="gold">デジタル伝票</div><div class="ledgerTotal">¥'+total.toLocaleString()+'</div></div><span class="pill live">未会計</span></div><div class="quickGrid" style="margin-top:12px"><button class="btn2" onclick="addBillPreset(\'エントランス\',1000)">エントランス ¥1,000</button><button class="btn2" onclick="addBillPreset(\'飲み放題\',2000)">飲み放題 ¥2,000</button><button class="btn2" onclick="addCustomBillItem()">その他を追加</button><button class="btn2" onclick="ringActionMenu()">リング差額精算</button></div><div style="margin-top:14px">'+(active.length?active.map(x=>'<div class="billLine"><span>'+esc(x.item_name)+(x.quantity>1?' ×'+x.quantity:'')+'<small class="muted" style="display:block">'+esc(x.source||'staff')+'</small></span><span><b>¥'+Number(x.amount).toLocaleString()+'</b> <button class="btn2" onclick="voidBillItem(\''+x.id+'\')">取消</button></span></div>').join(''):'<div class="muted">明細はありません。</div>')+'</div><button class="btn" style="width:100%;margin-top:16px" onclick="closeBill()">会計済みにする</button><div id="ringPanel"></div>';
+ if(!activeBillTab)return;
+ const d=document.getElementById('memberDetail');
+ const r=await sb.from('tab_items').select('*').eq('tab_id',activeBillTab.id).order('created_at');
+ const items=(r.data||[]),active=items.filter(x=>!x.voided),total=active.reduce((s,x)=>s+Number(x.amount||0),0);
+ const ccEligible=active.filter(x=>x.cc_eligible===true).reduce((s,x)=>s+Number(x.amount||0),0);
+ const br=await sb.from('crown_coin_balances').select('balance').eq('member_id',activeBillMember.id).maybeSingle();
+ const ccBalance=Number(br.data?.balance||0), ccMax=Math.max(0,Math.min(ccBalance,ccEligible));
+ let old=document.getElementById('adminBillPanel');if(old)old.remove();
+ const panel=document.createElement('div');panel.id='adminBillPanel';panel.className='card';
+ panel.innerHTML='<div class="row"><div><div class="gold">デジタル伝票</div><div class="ledgerTotal">¥'+total.toLocaleString()+'</div></div><span class="pill live">未会計</span></div>'+
+ '<div class="quickGrid" style="margin-top:12px"><button class="btn2" onclick="addBillPreset(\'エントランス\',1000,false)">エントランス ¥1,000</button><button class="btn2" onclick="addBillPreset(\'飲み放題\',2000,false)">飲み放題 ¥2,000</button><button class="btn2" onclick="addTournamentItem()">トーナメント</button><button class="btn2" onclick="addCustomBillItem()">その他を追加</button><button class="btn2" onclick="ringActionMenu()">リング差額精算</button></div>'+
+ '<div style="margin-top:14px">'+(active.length?active.map(x=>'<div class="billLine"><span>'+esc(x.item_name)+(x.quantity>1?' ×'+x.quantity:'')+'<small class="muted" style="display:block">'+esc(x.source||'staff')+(x.cc_eligible?' ・ CC使用可':' ・ CC使用不可')+'</small></span><span><b>¥'+Number(x.amount).toLocaleString()+'</b> <button class="btn2" onclick="voidBillItem(\''+x.id+'\')">取消</button></span></div>').join(''):'<div class="muted">明細はありません。</div>')+'</div>'+
+ '<div class="card" style="margin-top:16px"><b class="gold">Crown coinで支払う</b><div class="row"><span>保有CC</span><b>'+ccBalance.toLocaleString()+'CC</b></div><div class="row"><span>CC使用可能な明細</span><b>¥'+ccEligible.toLocaleString()+'</b></div><div class="row"><span>今回使用できる上限</span><b>'+ccMax.toLocaleString()+'CC</b></div><input id="ccUseAmount" type="number" min="0" max="'+ccMax+'" step="1" value="'+ccMax+'" placeholder="使用するCC"><div class="muted" style="margin-top:8px">Crown coinはトーナメント・リングにのみ使用できます。</div></div>'+
+ '<button class="btn" style="width:100%;margin-top:16px" onclick="closeBill()">会計確認へ</button><div id="ringPanel"></div>';
  d.appendChild(panel);
 }
-async function addBillPreset(name,amount){const r=await sb.from('tab_items').insert({tab_id:activeBillTab.id,item_name:name,quantity:1,unit_price:amount,amount,source:'staff'});if(r.error)return alert(r.error.message);renderAdminBill()}
-async function addCustomBillItem(){const name=prompt('項目名を入力してください');if(!name)return;const a=Number(prompt('金額を入力してください'));if(!Number.isFinite(a))return;addBillPreset(name,a)}
+async function addBillPreset(name,amount,ccEligible=false){const r=await sb.from('tab_items').insert({tab_id:activeBillTab.id,item_name:name,quantity:1,unit_price:amount,amount,source:'staff',cc_eligible:ccEligible});if(r.error)return alert(r.error.message);renderAdminBill()}
+async function addTournamentItem(){const name=prompt('トーナメント名を入力してください','トーナメント');if(!name)return;const a=Number(prompt('金額を入力してください'));if(!Number.isFinite(a)||a<0)return;addBillPreset(name,a,true)}
+async function addCustomBillItem(){const name=prompt('項目名を入力してください');if(!name)return;const a=Number(prompt('金額を入力してください'));if(!Number.isFinite(a))return;addBillPreset(name,a,false)}
 async function voidBillItem(id){if(!confirm('この明細を取消しますか？\n履歴は残ります。'))return;const r=await sb.from('tab_items').update({voided:true,voided_at:new Date().toISOString()}).eq('id',id);if(r.error)return alert(r.error.message);renderAdminBill()}
-async function closeBill(){if(!confirm('会計済みにしますか？\n次回QR読み取り時は新しい伝票になります。'))return;const r=await sb.from('customer_tabs').update({status:'paid',closed_at:new Date().toISOString()}).eq('id',activeBillTab.id);if(r.error)return alert(r.error.message);activeBillTab=null;document.getElementById('adminBillPanel')?.remove();alert('会計済みにしました。')}
+async function closeBill(){
+ const ir=await sb.from('tab_items').select('*').eq('tab_id',activeBillTab.id);if(ir.error)return alert(ir.error.message);
+ const active=(ir.data||[]).filter(x=>!x.voided),total=active.reduce((s,x)=>s+Number(x.amount||0),0),eligible=active.filter(x=>x.cc_eligible===true).reduce((s,x)=>s+Number(x.amount||0),0);
+ const br=await sb.from('crown_coin_balances').select('balance').eq('member_id',activeBillMember.id).maybeSingle();const balance=Number(br.data?.balance||0),max=Math.max(0,Math.min(balance,eligible));
+ const requested=Math.floor(Number(document.getElementById('ccUseAmount')?.value||0));if(!Number.isFinite(requested)||requested<0||requested>max)return alert('使用できるCrown coinは0〜'+max.toLocaleString()+'CCです。');
+ const cash=Math.max(0,total-requested);
+ if(!confirm('会計内容を確認してください。\n\n合計：¥'+total.toLocaleString()+'\nCC対象：¥'+eligible.toLocaleString()+'\n使用：'+requested.toLocaleString()+'CC\nお支払い：¥'+cash.toLocaleString()+'\n会計後CC：'+(balance-requested).toLocaleString()+'CC\n\n会計済みにしますか？'))return;
+ const x=await sb.rpc('settle_customer_tab',{p_tab_id:activeBillTab.id,p_cc_amount:requested});if(x.error)return alert('会計エラー：'+x.error.message);
+ activeBillTab=null;document.getElementById('adminBillPanel')?.remove();alert('会計完了\nお支払い：¥'+cash.toLocaleString()+(requested?'\nCrown coin：'+requested.toLocaleString()+'CC使用':''));
+}
 async function ringActionMenu(){
  const h=document.getElementById('ringPanel');let r=await sb.from('ring_sessions').select('*').eq('tab_id',activeBillTab.id).eq('status','open').limit(1),s=r.data?.[0];
  if(!s){const c=await sb.from('ring_sessions').insert({tab_id:activeBillTab.id,member_id:activeBillMember.id,status:'open'}).select().single();if(c.error)return alert(c.error.message);s=c.data}
@@ -85,7 +107,7 @@ async function ringMove(id,kind){const chips=Number(prompt((kind==='withdraw'?'�
 async function finalizeRing(id){
  const mr=await sb.from('ring_movements').select('*').eq('session_id',id);const ms=mr.data||[],w=ms.filter(x=>x.kind==='withdraw').reduce((a,x)=>a+Number(x.chips),0),d=ms.filter(x=>x.kind==='deposit').reduce((a,x)=>a+Number(x.chips),0),net=w-d;
  if(!confirm('最終差額 '+net.toLocaleString()+'点で精算しますか？'))return;
- if(net>0){const x=await sb.from('tab_items').insert({tab_id:activeBillTab.id,item_name:'リング差額',quantity:1,unit_price:net,amount:net,source:'ring'});if(x.error)return alert(x.error.message)}
+ if(net>0){const x=await sb.from('tab_items').insert({tab_id:activeBillTab.id,item_name:'リング差額',quantity:1,unit_price:net,amount:net,source:'ring',cc_eligible:true});if(x.error)return alert(x.error.message)}
  if(net<0){const x=await sb.rpc('add_crown_coin',{p_member_id:activeBillMember.id,p_amount:Math.abs(net),p_reason:'リングゲーム純増'});if(x.error)return alert('Crown coin付与でエラー：'+x.error.message);alert(Math.abs(net).toLocaleString()+'CCを付与しました。\n現在残高：'+Number(x.data||0).toLocaleString()+'CC')}
  await sb.from('ring_sessions').update({status:'closed',closed_at:new Date().toISOString(),net_result:net}).eq('id',id);renderAdminBill();
 }
@@ -103,4 +125,4 @@ function openMemberBillFromSearch(id){const x=membersCache.find(v=>String(v.id)=
 function openMember(id){const x=membersCache.find(v=>String(v.id)===String(id));if(!x)return;const d=document.getElementById('memberDetail'),name=memberVal(x,['display_name','name','nickname'])||'MEMBER',rawNo=memberVal(x,['member_number','member_no']),no=rawNo!==''?String(rawNo).padStart(4,'0'):String(x.id).slice(0,8);d.innerHTML='<div class="card"><div class="row"><div><div class="gold" style="font-size:12px">THE CROWN MEMBER</div><h2 style="margin:5px 0">'+esc(name)+'</h2><div class="muted">MEMBER ID '+esc(no)+'</div></div><button class="btn2" onclick="closeMember()">閉じる</button></div><div id="adminMemberQr" style="width:220px;height:220px;background:#fff;border-radius:14px;padding:12px;margin:20px auto;display:grid;place-items:center"></div><p class="muted" style="text-align:center">スタッフ読み取り用QR</p></div>';d.classList.remove('hidden');const q=document.getElementById('adminMemberQr');if(window.QRCode)new QRCode(q,{text:'CROWN:'+x.id,width:196,height:196,correctLevel:QRCode.CorrectLevel.M});else q.innerHTML='<span style="color:#111">'+esc(String(x.id))+'</span>';d.scrollIntoView({behavior:'smooth',block:'start'})}
 function closeMember(){document.getElementById('memberDetail').classList.add('hidden')}
 boot();setTimeout(startOrderRealtime,1200);
-</script><div style="position:fixed;right:10px;bottom:10px;z-index:9999;font-size:10px;color:#cfa83b;opacity:.65">ADMIN v20260926-1820</div><script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script><script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script></body></html>
+</script><div style="position:fixed;right:10px;bottom:10px;z-index:9999;font-size:10px;color:#cfa83b;opacity:.65">ADMIN v20260926-1840</div><script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script><script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script></body></html>
