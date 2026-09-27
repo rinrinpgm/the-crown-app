@@ -130,13 +130,39 @@ async function renderAdminBill(){
  let old=document.getElementById('adminBillPanel');if(old)old.remove();
  const panel=document.createElement('div');panel.id='adminBillPanel';panel.className='card';
  panel.innerHTML='<div class="row"><div><div class="gold">デジタル伝票</div><div class="ledgerTotal">¥'+total.toLocaleString()+'</div></div><span class="pill live">未会計</span></div>'+
- '<div class="quickGrid" style="margin-top:12px"><button class="btn2" onclick="addBillPreset(\'エントランス\',1000,false)">エントランス ¥1,000</button><button class="btn2" onclick="addBillPreset(\'飲み放題\',2000,false)">飲み放題 ¥2,000</button><button class="btn2" onclick="addTournamentItem()">トーナメント</button><button class="btn2" onclick="addCustomBillItem()">その他を追加</button><button class="btn2" onclick="ringActionMenu()">リング差額精算</button></div>'+
+ '<div class="quickGrid" style="margin-top:12px"><button class="btn" onclick="openBillingMenu()">商品を追加</button><button class="btn2" onclick="ringActionMenu()">リング差額精算</button></div><div id="billingMenuPanel"></div>'+
  '<div style="margin-top:14px">'+(active.length?active.map(x=>'<div class="billLine"><span>'+esc(x.item_name)+(x.quantity>1?' ×'+x.quantity:'')+'<small class="muted" style="display:block">'+esc(x.source||'staff')+(x.cc_eligible?' ・ CC使用可':' ・ CC使用不可')+'</small></span><span><b>¥'+Number(x.amount).toLocaleString()+'</b> <button class="btn2" onclick="editBillItem(\''+x.id+'\','+Number(x.amount||0)+')">金額変更</button> <button class="btn2" onclick="voidBillItem(\''+x.id+'\')">取消</button></span></div>').join(''):'<div class="muted">明細はありません。</div>')+'</div>'+
  '<div class="card" style="margin-top:16px"><div class="row"><div><b class="gold">割引・チケット</b><div class="muted">割引券・無料券・ドリンクチケットを伝票に反映</div></div><button class="btn2" onclick="showTicketMenu()">適用する</button></div><div id="ticketMenu"></div></div><div class="card" style="margin-top:16px"><b class="gold">Crown coinで支払う</b><div class="row"><span>保有CC</span><b>'+ccBalance.toLocaleString()+'CC</b></div><div class="row"><span>CC使用可能な明細</span><b>¥'+ccEligible.toLocaleString()+'</b></div><div class="row"><span>今回使用できる上限</span><b>'+ccMax.toLocaleString()+'CC</b></div><input id="ccUseAmount" type="number" min="0" max="'+ccMax+'" step="1" value="'+ccMax+'" placeholder="使用するCC"><div class="muted" style="margin-top:8px">Crown coinはトーナメント・リングにのみ使用できます。</div></div>'+
  '<button class="btn" style="width:100%;margin-top:16px" onclick="closeBill()">会計確認へ</button><div id="ringPanel"></div>';
  d.appendChild(panel);
 }
 async function addBillPreset(name,amount,ccEligible=false){const r=await sb.from('tab_items').insert({tab_id:activeBillTab.id,item_name:name,quantity:1,unit_price:amount,amount,source:'staff',cc_eligible:ccEligible});if(r.error)return alert(r.error.message);renderAdminBill()}
+let billingMenuCache=[];
+async function openBillingMenu(){
+ const h=document.getElementById('billingMenuPanel');if(!h)return;
+ h.innerHTML='<div class="card" style="margin-top:14px"><div class="muted">商品を読み込み中...</div></div>';
+ const r=await sb.from('order_menu').select('*').eq('active',true).order('category_order').order('display_order');
+ if(r.error){h.innerHTML='<div class="card err" style="margin-top:14px">'+esc(r.error.message)+'</div>';return}
+ billingMenuCache=r.data||[];
+ const cats=[];billingMenuCache.forEach(x=>{if(!cats.includes(x.category))cats.push(x.category)});
+ h.innerHTML='<div class="card" style="margin-top:14px"><div class="row"><div><b class="gold">商品カテゴリー</b><div class="muted">カテゴリーを選んでください</div></div><button class="btn2" onclick="closeBillingMenu()">閉じる</button></div><div class="quickGrid" style="margin-top:12px">'+cats.map((x,i)=>'<button class="btn2" onclick="showBillingCategory('+i+')">'+esc(x)+'</button>').join('')+'</div></div>';
+}
+function closeBillingMenu(){const h=document.getElementById('billingMenuPanel');if(h)h.innerHTML=''}
+function showBillingCategory(index){
+ const h=document.getElementById('billingMenuPanel');if(!h)return;
+ const cats=[];billingMenuCache.forEach(x=>{if(!cats.includes(x.category))cats.push(x.category)});const cat=cats[index];if(cat==null)return;
+ const rows=billingMenuCache.filter(x=>x.category===cat);
+ h.innerHTML='<div class="card" style="margin-top:14px"><div class="row"><div><b class="gold">'+esc(cat)+'</b><div class="muted">商品を選択 → 金額確認・変更 → 追加</div></div><button class="btn2" onclick="openBillingMenu()">カテゴリーへ戻る</button></div><div class="quickGrid" style="margin-top:12px">'+rows.map(x=>'<button class="btn2" onclick="selectBillingMenuItem(\''+x.id+'\')"><b>'+esc(x.name)+'</b><small class="muted" style="display:block;margin-top:4px">'+(Number(x.price||0)>0?'¥'+Number(x.price).toLocaleString():'金額入力')+'</small></button>').join('')+'</div></div>';
+}
+async function selectBillingMenuItem(id){
+ const x=billingMenuCache.find(v=>String(v.id)===String(id));if(!x)return;
+ const base=Number(x.price||0),raw=prompt(x.name+'\n金額を確認・変更してください',base>0?String(base):'');
+ if(raw===null)return;const amount=Number(String(raw).replace(/[,，円¥￥\s]/g,''));
+ if(!Number.isFinite(amount)||amount<0)return alert('0以上の金額を入力してください。');
+ if(!confirm(x.name+'\n¥'+amount.toLocaleString()+'\n\n伝票に追加しますか？'))return;
+ const r=await sb.from('tab_items').insert({tab_id:activeBillTab.id,item_name:x.name,quantity:1,unit_price:amount,amount,source:'staff',cc_eligible:x.cc_eligible===true});
+ if(r.error)return alert(r.error.message);renderAdminBill();
+}
 async function addTournamentItem(){const name=prompt('トーナメント名を入力してください','トーナメント');if(!name)return;const a=Number(prompt('金額を入力してください'));if(!Number.isFinite(a)||a<0)return;addBillPreset(name,a,true)}
 async function addCustomBillItem(){const name=prompt('項目名を入力してください');if(!name)return;const a=Number(prompt('金額を入力してください'));if(!Number.isFinite(a))return;addBillPreset(name,a,false)}
 async function editBillItem(id,current){const a=Number(prompt('変更後の金額を入力してください',current));if(!Number.isFinite(a)||a<0)return;const r=await sb.from('tab_items').update({amount:a,unit_price:a}).eq('id',id);if(r.error)return alert(r.error.message);renderAdminBill()}
