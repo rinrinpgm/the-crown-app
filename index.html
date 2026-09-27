@@ -90,8 +90,8 @@ async function loadMyCrown(){
  const raw=pick(m,['member_number','member_no']);document.getElementById('myMemberNo').textContent='MEMBER ID  '+(raw!==null&&raw!==undefined&&raw!==''?String(raw).padStart(4,'0'):'');
  renderMemberQr(token);renderDeviceSaveArea(token,!!savedToken);
  await loadCrownBillReadOnly(m);loadMyCheckoutHistory();
- const {data:bal}=await sb.from('crown_coin_balances').select('*').eq('member_id',mid).limit(1);
- document.getElementById('myCoin').textContent=Number(pick(bal&&bal[0],['balance','amount','coin_balance'])||0).toLocaleString()+' cc';
+ const {data:coinRows,error:coinError}=await sb.rpc('get_member_coin_by_qr',{p_qr_token:token});const coinRow=Array.isArray(coinRows)?coinRows[0]:coinRows;
+ document.getElementById('myCoin').textContent=coinError?'— cc':Number(pick(coinRow,['balance','amount','coin_balance'])||0).toLocaleString()+' cc';
  const {data:mc}=await sb.from('member_coupons').select('*').eq('member_id',mid).limit(100);
  const ids=[...new Set((mc||[]).map(x=>x.coupon_id).filter(Boolean))];let defs=[];
  if(ids.length){const r=await sb.from('coupons').select('*').in('id',ids);defs=r.data||[]}
