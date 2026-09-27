@@ -17,7 +17,7 @@
 <div id="myQrGuide" class="card"><div class="gold" style="font-size:12px;letter-spacing:.12em">MY CROWN</div><h2 style="margin:7px 0">会員QRからアクセスしてください</h2><p class="muted">店舗で発行された会員QRを読み取ると、Crown coin・チケット・お会計・会計履歴を確認できます。</p></div>
 <div id="myMember" class="hidden myCrown">
 <div class="memberHero"><div class="memberGlow"></div><div class="gold memberEyebrow">THE CROWN MEMBER</div><h2 id="myName">MEMBER</h2><div id="myMemberNo" class="memberNo"></div><div class="memberQrFrame"><div id="myQr" class="memberQr"></div></div><div class="qrHint">このQRはあなた専用の会員証です</div><div id="deviceSaveArea" style="margin-top:14px"></div></div>
-<div class="coinCard"><div><small>CROWN COIN</small><div class="coinCaption">現在の保有残高</div></div><div id="myCoin" class="coinBalance">0 cc</div></div>
+<div class="coinCard"><div><small>CROWN COIN</small><div class="coinCaption">現在の保有残高</div><button class="miniBtn" style="margin-top:10px" onclick="toggleMyCoinHistory()">詳細・履歴を見る</button></div><div id="myCoin" class="coinBalance">0 cc</div></div><div id="myCoinHistory" class="historyCard hidden" style="margin-top:8px"><div class="row"><div><b>Crown coin 履歴</b><div class="muted">最新の増減履歴</div></div><button class="miniBtn" onclick="loadMyCoinHistory()">更新</button></div><div id="myCoinHistoryList" class="sectionSep"><div class="muted">読み込み中...</div></div></div>
 <div id="myBillArea" class="myBlock"></div>
 <div class="mySectionHead"><div><small>BENEFITS</small><h2>COUPON</h2></div></div><div id="myCoupons" class="couponGrid"><div class="card muted">クーポンはありません。</div></div>
 <div class="mySectionHead"><div><small>HISTORY</small><h2>会計履歴</h2></div></div><div class="historyCard"><div class="row"><div><b>過去のお会計</b><div class="muted">会計済みの伝票を確認できます</div></div><button class="miniBtn" onclick="loadMyCheckoutHistory()">更新</button></div><div class="field compactField"><label>表示する月</label><input id="myHistoryMonth" type="month" onchange="loadMyCheckoutHistory()"></div><div id="myCheckoutHistory" class="sectionSep"><div class="muted">読み込み中...</div></div></div>
@@ -96,6 +96,16 @@ async function loadMyCrown(){
  const {data:couponRows,error:couponError}=await sb.rpc('get_member_coupons_by_qr',{p_qr_token:token});
  const keep=couponError?[]:(couponRows||[]),now=new Date();
  document.getElementById('myCoupons').innerHTML=couponError?'<div class="card muted">クーポンを取得できませんでした。</div>':keep.length?keep.map(x=>{const exp=x.expires_at,expired=exp&&new Date(exp)<now;return '<div class="card"><div class="row"><b>'+esc(x.coupon_name||'クーポン')+'</b><span class="pill">'+(expired?'期限切れ':'利用可能')+'</span></div>'+(exp?'<p class="muted">有効期限 '+esc(String(exp).slice(0,10))+'</p>':'')+'</div>'}).join(''):'<div class="card muted">現在利用できるクーポンはありません。</div>';
+}
+function toggleMyCoinHistory(){const h=document.getElementById('myCoinHistory');if(!h)return;const opening=h.classList.contains('hidden');h.classList.toggle('hidden');if(opening)loadMyCoinHistory()}
+async function loadMyCoinHistory(){
+ const h=document.getElementById('myCoinHistoryList');if(!h)return;h.innerHTML='<div class="muted">読み込み中...</div>';
+ const token=new URLSearchParams(location.search).get('member')||localStorage.getItem('crown_member_token')||'';
+ if(!token){h.innerHTML='<div class="muted">会員情報を確認できません。</div>';return}
+ const r=await sb.rpc('get_member_coin_history_by_qr',{p_qr_token:token});
+ if(r.error){h.innerHTML='<div class="muted">履歴を取得できませんでした。</div>';return}
+ const rows=r.data||[];if(!rows.length){h.innerHTML='<div class="muted">Crown coinの履歴はありません。</div>';return}
+ h.innerHTML=rows.map(x=>{const a=Number(x.amount||0),dt=x.created_at?new Date(x.created_at).toLocaleString('ja-JP',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'';return '<div class="billLine" style="padding:11px 0"><span>'+esc(dt)+'</span><b style="font-size:17px">'+(a>0?'+':'')+a.toLocaleString()+' cc</b></div>'}).join('');
 }
 function renderDeviceSaveArea(token,isSaved){
  const h=document.getElementById('deviceSaveArea');if(!h)return;
