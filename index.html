@@ -25,7 +25,8 @@
 </main><div id="tourModal" class="modal" onclick="if(event.target===this)closeTournament()"><div class="modalBox"><div class="modalHead"><div><div class="gold" style="font-size:12px;letter-spacing:.12em">TOURNAMENT</div><h2 id="tdName" style="margin:5px 0 0"></h2></div><button class="modalClose" onclick="closeTournament()">×</button></div><div id="tdBody"></div></div></div><nav class="nav"><button class="active" data-p="home" onclick="show('home')"><span class="ico">⌂</span>HOME</button><button data-p="tournament" onclick="show('tournament')"><span class="ico">♠</span>トーナメント</button><button data-p="ring" onclick="show('ring')"><span class="ico">♣</span>RING</button><button data-p="ranking" onclick="show('ranking')"><span class="ico">♛</span>ランキング</button><button data-p="my" onclick="show('my')"><span class="ico">♦</span>MY CROWN</button></nav></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script>
 const SUPABASE_URL='https://rswptjjadknxvbemvrzu.supabase.co'; let sb=null;
-function cfg(){try{const saved=JSON.parse(localStorage.getItem('crown_supabase_config')||'null');const adminKey=localStorage.getItem('crown_publishable_key')||'';return saved?.key?saved:(adminKey?{key:adminKey}:null)}catch(e){const adminKey=localStorage.getItem('crown_publishable_key')||'';return adminKey?{key:adminKey}:null}}
+const PUBLIC_SUPABASE_KEY='sb_publishable_5ER9jZLKcFCQ2DpTBErYRQ_G3usSVpi';
+function cfg(){return {key:PUBLIC_SUPABASE_KEY}}
 function init(){const c=cfg();if(!c?.key||!window.supabase)return false;sb=supabase.createClient(SUPABASE_URL,c.key);return true}
 function setup(){return false}
 function showConnectError(){['homeFeatured','homeCampaigns'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML='<div class="card muted">データ接続を確認してください。</div>'});const s=document.getElementById('homeStatus');if(s)s.innerHTML='<div class="statusBox"><small>STATUS</small><b>—</b></div>'}
