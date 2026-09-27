@@ -92,11 +92,9 @@ async function loadMyCrown(){
  await loadCrownBillReadOnly(m);loadMyCheckoutHistory();
  const {data:coinRows,error:coinError}=await sb.rpc('get_member_coin_by_qr',{p_qr_token:token});const coinRow=Array.isArray(coinRows)?coinRows[0]:coinRows;
  document.getElementById('myCoin').textContent=coinError?'— cc':Number(pick(coinRow,['balance','amount','coin_balance'])||0).toLocaleString()+' cc';
- const {data:mc}=await sb.from('member_coupons').select('*').eq('member_id',mid).limit(100);
- const ids=[...new Set((mc||[]).map(x=>x.coupon_id).filter(Boolean))];let defs=[];
- if(ids.length){const r=await sb.from('coupons').select('*').in('id',ids);defs=r.data||[]}
- const dm=Object.fromEntries(defs.map(x=>[x.id,x])),now=new Date(),keep=(mc||[]).filter(x=>{const e=pick(x,['expires_at','expiry_date','expires_on']);if(!e)return true;const d=new Date(e);d.setDate(d.getDate()+7);return d>=now});
- document.getElementById('myCoupons').innerHTML=keep.length?keep.map(x=>{const d=dm[x.coupon_id]||{},name=pick(d,['title','name'])||'クーポン',exp=pick(x,['expires_at','expiry_date','expires_on'])||pick(d,['expires_at','expiry_date','expires_on']),expired=exp&&new Date(exp)<now;return '<div class="card"><div class="row"><b>'+esc(name)+'</b><span class="pill">'+(expired?'期限切れ':'利用可能')+'</span></div>'+(exp?'<p class="muted">有効期限 '+esc(String(exp).slice(0,10))+'</p>':'')+'</div>'}).join(''):'<div class="card muted">現在利用できるクーポンはありません。</div>';
+ const {data:couponRows,error:couponError}=await sb.rpc('get_member_coupons_by_qr',{p_qr_token:token});
+ const keep=couponError?[]:(couponRows||[]),now=new Date();
+ document.getElementById('myCoupons').innerHTML=couponError?'<div class="card muted">クーポンを取得できませんでした。</div>':keep.length?keep.map(x=>{const exp=x.expires_at,expired=exp&&new Date(exp)<now;return '<div class="card"><div class="row"><b>'+esc(x.coupon_name||'クーポン')+'</b><span class="pill">'+(expired?'期限切れ':'利用可能')+'</span></div>'+(exp?'<p class="muted">有効期限 '+esc(String(exp).slice(0,10))+'</p>':'')+'</div>'}).join(''):'<div class="card muted">現在利用できるクーポンはありません。</div>';
 }
 function renderDeviceSaveArea(token,isSaved){
  const h=document.getElementById('deviceSaveArea');if(!h)return;
@@ -107,25 +105,24 @@ function saveCrownMember(token){localStorage.setItem('crown_member_token',token)
 function forgetCrownMember(){if(!confirm('この端末に保存した会員証を解除しますか？'))return;localStorage.removeItem('crown_member_token');history.replaceState(null,'',location.pathname+'#my');crownCurrentMember=null;document.getElementById('myMember')?.classList.add('hidden');document.getElementById('myQrGuide')?.classList.remove('hidden')}
 async function loadCrownBillReadOnly(member){
  const area=document.getElementById('myBillArea');if(!area)return;
- const tr=await sb.from('customer_tabs').select('*').eq('member_id',member.id).eq('status','open').order('opened_at',{ascending:false}).limit(1);
- if(tr.error){area.innerHTML='<div class="card muted">現在のお会計を取得できませんでした。</div>';return}
- crownCurrentTab=tr.data?.[0]||null;
- if(!crownCurrentTab){area.innerHTML='<div class="card"><div class="gold">本日のお会計</div><div class="billTotal">¥0</div><div class="muted">現在、未会計の伝票はありません。</div></div>';return}
- const ir=await sb.from('tab_items').select('*').eq('tab_id',crownCurrentTab.id).order('created_at');
- const items=(ir.data||[]).filter(x=>!x.voided),total=items.reduce((s,x)=>s+Number(x.amount||0),0);
- area.innerHTML='<div class="card"><div class="gold">現在のお会計</div><div class="billTotal">¥'+total.toLocaleString()+'</div><button class="btn2" onclick="toggleMyBill()">明細を見る</button><div id="myBillLines" class="hidden sectionSep">'+(items.length?items.map(x=>'<div class="billLine"><span>'+esc(x.item_name)+(x.quantity>1?' ×'+x.quantity:'')+'</span><b>¥'+Number(x.amount||0).toLocaleString()+'</b></div>').join(''):'<div class="muted">明細はまだありません。</div>')+'</div></div>';
+ const token=new URLSearchParams(location.search).get('member')||localStorage.getItem('crown_member_token')||'';
+ const r=await sb.rpc('get_member_current_bill_by_qr',{p_qr_token:token});
+ if(r.error){area.innerHTML='<div class="card muted">現在のお会計を取得できませんでした。</div>';return}
+ const rows=r.data||[];if(!rows.length){area.innerHTML='<div class="card"><div class="gold">本日のお会計</div><div class="billTotal">¥0</div><div class="muted">現在、未会計の伝票はありません。</div></div>';return}
+ const total=rows.reduce((s,x)=>s+Number(x.amount||0),0);
+ area.innerHTML='<div class="card"><div class="gold">現在のお会計</div><div class="billTotal">¥'+total.toLocaleString()+'</div><button class="btn2" onclick="toggleMyBill()">明細を見る</button><div id="myBillLines" class="hidden sectionSep">'+rows.map(x=>'<div class="billLine"><span>'+esc(x.item_name)+(Number(x.quantity)>1?' ×'+x.quantity:'')+'</span><b>¥'+Number(x.amount||0).toLocaleString()+'</b></div>').join('')+'</div></div>';
 }
 async function loadMyCheckoutHistory(){
  const h=document.getElementById('myCheckoutHistory');if(!h||!crownCurrentMember)return;
  h.innerHTML='<div class="muted">読み込み中...</div>';
- let q=sb.from('customer_tabs').select('*').eq('member_id',crownCurrentMember.id).eq('status','paid').order('closed_at',{ascending:false}).limit(100);
- const mv=document.getElementById('myHistoryMonth')?.value;
- if(mv){const [y,m]=mv.split('-').map(Number),last=new Date(y,m,0).getDate(),from=new Date(mv+'-01T00:00:00+09:00').toISOString(),to=new Date(mv+'-'+String(last).padStart(2,'0')+'T23:59:59.999+09:00').toISOString();q=q.gte('closed_at',from).lte('closed_at',to)}
- const tr=await q;if(tr.error){h.innerHTML='<div class="muted">会計履歴を取得できませんでした。</div>';return}
- const tabs=tr.data||[];if(!tabs.length){h.innerHTML='<div class="muted">該当する会計履歴はありません。</div>';return}
- const ids=tabs.map(x=>x.id),ir=await sb.from('tab_items').select('*').in('tab_id',ids).order('created_at');const items=(ir.data||[]).filter(x=>!x.voided);
- h.innerHTML=tabs.map(t=>{const lines=items.filter(x=>x.tab_id===t.id),total=lines.reduce((s,x)=>s+Number(x.amount||0),0),dt=t.closed_at?new Date(t.closed_at).toLocaleString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'';return '<div style="padding:14px 0;border-bottom:1px solid #302a1d"><div class="row"><span><b>'+esc(dt)+'</b></span><b class="gold">¥'+total.toLocaleString()+'</b></div><details style="margin-top:8px"><summary class="muted" style="cursor:pointer">明細を見る</summary><div style="padding-top:8px">'+(lines.length?lines.map(x=>'<div class="billLine"><span>'+esc(x.item_name)+(x.quantity>1?' ×'+x.quantity:'')+'</span><b>¥'+Number(x.amount||0).toLocaleString()+'</b></div>').join(''):'<div class="muted">明細なし</div>')+'</div></details></div>'}).join('');
+ const token=new URLSearchParams(location.search).get('member')||localStorage.getItem('crown_member_token')||'',mv=document.getElementById('myHistoryMonth')?.value||null;
+ const r=await sb.rpc('get_member_history_by_qr',{p_qr_token:token,p_month:mv||null});
+ if(r.error){h.innerHTML='<div class="muted">会計履歴を取得できませんでした。</div>';return}
+ const rows=r.data||[];if(!rows.length){h.innerHTML='<div class="muted">該当する会計履歴はありません。</div>';return}
+ const groups={};rows.forEach(x=>{if(!groups[x.tab_id])groups[x.tab_id]={closed_at:x.closed_at,lines:[]};groups[x.tab_id].lines.push(x)});
+ h.innerHTML=Object.entries(groups).map(([id,g])=>{const total=g.lines.reduce((s,x)=>s+Number(x.amount||0),0),dt=g.closed_at?new Date(g.closed_at).toLocaleString('ja-JP',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'';return '<div style="padding:14px 0;border-bottom:1px solid #302a1d"><div class="row"><span><b>'+esc(dt)+'</b></span><b class="gold">¥'+total.toLocaleString()+'</b></div><details style="margin-top:8px"><summary class="muted" style="cursor:pointer">明細を見る</summary><div style="padding-top:8px">'+g.lines.map(x=>'<div class="billLine"><span>'+esc(x.item_name)+(Number(x.quantity)>1?' ×'+x.quantity:'')+'</span><b>¥'+Number(x.amount||0).toLocaleString()+'</b></div>').join('')+'</div></details></div>'}).join('');
 }
+
 function toggleMySignup(){document.getElementById('mySignup')?.classList.toggle('hidden')}
 async function mySignup(){
  const n=document.getElementById('signupNote'),nickname=document.getElementById('signupNickname').value.trim(),email=document.getElementById('signupEmail').value.trim(),password=document.getElementById('signupPassword').value;
