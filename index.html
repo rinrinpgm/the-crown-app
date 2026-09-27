@@ -95,7 +95,7 @@ async function mySignup(){
  const n=document.getElementById('signupNote'),nickname=document.getElementById('signupNickname').value.trim(),email=document.getElementById('signupEmail').value.trim(),password=document.getElementById('signupPassword').value;
  if(!nickname||!email||password.length<6){n.textContent='ニックネーム・メールアドレス・6文字以上のパスワードを入力してください。';return}
  n.textContent='登録中…';
- const r=await sb.auth.signUp({email,password,options:{data:{nickname}}});
+ const r=await sb.auth.signUp({email,password,options:{data:{nickname},emailRedirectTo:'https://rinrinpgm.github.io/the-crown-app/'}});
  if(r.error){n.textContent='登録できませんでした：'+r.error.message;return}
  if(!r.data.session){n.textContent='確認メールを送信しました。メール内のリンクを開いてください。確認後、初回ログイン時に会員番号が自動発行されます。';return}
  const x=await sb.rpc('ensure_crown_member');
