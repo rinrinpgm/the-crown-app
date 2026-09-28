@@ -97,3 +97,16 @@ revoke all on function public.recalculate_poker_ratings() from public;
 grant execute on function public.finalize_poker_rating_results(uuid,integer,integer,jsonb) to authenticated;
 grant execute on function public.correct_poker_rating_results(uuid,integer,integer,jsonb) to authenticated;
 grant execute on function public.recalculate_poker_ratings() to authenticated;
+
+
+-- MY CROWN用：QR本人のRating情報だけ返す
+create or replace function public.get_member_rating_by_qr(p_qr_token uuid)
+returns table(member_id uuid,enabled boolean,current_rating integer,peak_rating integer,games_played integer,wins integer,itm_count integer,current_rank text,peak_rank text)
+language sql security definer set search_path=public as $$
+ select p.member_id,p.enabled,p.current_rating,p.peak_rating,p.games_played,p.wins,p.itm_count,p.current_rank,p.peak_rank
+ from public.members m join public.poker_rating_profiles p on p.member_id=m.id
+ where m.qr_token=p_qr_token and p.enabled=true
+ limit 1
+$$;
+revoke all on function public.get_member_rating_by_qr(uuid) from public;
+grant execute on function public.get_member_rating_by_qr(uuid) to anon,authenticated;
