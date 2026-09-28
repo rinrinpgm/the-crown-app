@@ -48,7 +48,7 @@ create or replace function public.recalculate_poker_ratings() returns void langu
 declare r record;v_before integer;v_games integer;v_actual numeric;v_expected numeric;v_k numeric;v_size numeric;v_change integer;v_after integer;v_rank text;v_peak_rank text;
 begin
  if not exists(select 1 from public.staff where auth_user_id=auth.uid() and active=true) then raise exception 'staff only'; end if;
- update public.poker_rating_profiles set current_rating=1500,peak_rating=1500,games_played=0,wins=0,itm_count=0,current_rank=null,peak_rank=null,updated_at=now();
+ update public.poker_rating_profiles set current_rating=1500,peak_rating=1500,games_played=0,wins=0,itm_count=0,current_rank=null,peak_rank=null,updated_at=now() where member_id is not null;
  for r in select pr.*,t.event_date,t.start_time from public.poker_rating_results pr join public.tournaments t on t.id=pr.tournament_id order by t.event_date asc,t.start_time asc,pr.created_at asc,pr.id asc loop
   insert into public.poker_rating_profiles(member_id,enabled) values(r.member_id,true) on conflict(member_id) do nothing;
   select current_rating,games_played,current_rank,peak_rank into v_before,v_games,v_rank,v_peak_rank from public.poker_rating_profiles where member_id=r.member_id for update;
