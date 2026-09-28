@@ -17,7 +17,7 @@
 <div id="myQrGuide" class="card"><div class="gold" style="font-size:12px;letter-spacing:.12em">MY CROWN</div><h2 style="margin:7px 0">会員QRからアクセスしてください</h2><p class="muted">店舗で発行された会員QRを読み取ると、Crown coin・チケット・お会計・会計履歴を確認できます。</p></div>
 <div id="myMember" class="hidden myCrown">
 <div class="memberHero"><div class="memberGlow"></div><div class="gold memberEyebrow">THE CROWN MEMBER</div><h2 id="myName">MEMBER</h2><div id="myMemberNo" class="memberNo"></div><div class="memberQrFrame"><div id="myQr" class="memberQr"></div></div><div class="qrHint">このQRはあなた専用の会員証です</div><div id="deviceSaveArea" style="margin-top:14px"></div></div>
-<div class="coinCard"><div><small>CROWN COIN</small><div class="coinCaption">現在の保有残高</div><button class="miniBtn" style="margin-top:10px" onclick="toggleMyCoinHistory()">詳細・履歴を見る</button></div><div id="myCoin" class="coinBalance">0 cc</div></div><div id="myCoinHistory" class="historyCard hidden" style="margin-top:8px"><div class="row"><div><b>Crown coin 履歴</b><div class="muted">最新の増減履歴</div></div><button class="miniBtn" onclick="loadMyCoinHistory()">更新</button></div><div id="myCoinHistoryList" class="sectionSep"><div class="muted">読み込み中...</div></div></div>
+<div id="myRatingCard" class="card hidden"><div class="row"><div><small class="gold">POKER RATING</small><div id="myRatingValue" style="font-size:36px;font-weight:900;margin-top:4px">1,500</div></div><div style="text-align:right"><b id="myRatingRank" class="gold">PROVISIONAL</b><div id="myRatingProgress" class="muted"></div></div></div><div class="row" style="margin-top:14px"><span class="muted">最高Rating</span><b id="myPeakRating">1,500</b></div><div class="row"><span class="muted">最高到達</span><b id="myPeakRank">—</b></div><div class="row"><span class="muted">戦績</span><b id="myRatingStats">0戦 / 優勝0 / ITM0</b></div><div id="myNextRank" class="muted" style="margin-top:12px"></div></div><div class="coinCard"><div><small>CROWN COIN</small><div class="coinCaption">現在の保有残高</div><button class="miniBtn" style="margin-top:10px" onclick="toggleMyCoinHistory()">詳細・履歴を見る</button></div><div id="myCoin" class="coinBalance">0 cc</div></div><div id="myCoinHistory" class="historyCard hidden" style="margin-top:8px"><div class="row"><div><b>Crown coin 履歴</b><div class="muted">最新の増減履歴</div></div><button class="miniBtn" onclick="loadMyCoinHistory()">更新</button></div><div id="myCoinHistoryList" class="sectionSep"><div class="muted">読み込み中...</div></div></div>
 <div id="myBillArea" class="myBlock"></div>
 <div class="mySectionHead"><div><small>BENEFITS</small><h2>COUPON</h2></div></div><div id="myCoupons" class="couponGrid"><div class="card muted">クーポンはありません。</div></div>
 <div class="mySectionHead"><div><small>HISTORY</small><h2>会計履歴</h2></div></div><div class="historyCard"><div class="row"><div><b>過去のお会計</b><div class="muted">会計済みの伝票を確認できます</div></div><button class="miniBtn" onclick="loadMyCheckoutHistory()">更新</button></div><div class="field compactField"><label>表示する月</label><input id="myHistoryMonth" type="month" onchange="loadMyCheckoutHistory()"></div><div id="myCheckoutHistory" class="sectionSep"><div class="muted">読み込み中...</div></div></div>
@@ -90,12 +90,23 @@ async function loadMyCrown(){
  document.getElementById('myName').textContent=pick(m,['display_name','name','nickname'])||'MEMBER';
  const raw=pick(m,['member_number','member_no']);document.getElementById('myMemberNo').textContent='MEMBER ID  '+(raw!==null&&raw!==undefined&&raw!==''?String(raw).padStart(4,'0'):'');
  renderMemberQr(token);renderDeviceSaveArea(token,!!savedToken);
- await loadCrownBillReadOnly(m);loadMyCheckoutHistory();
+ await loadMyRating(token);await loadCrownBillReadOnly(m);loadMyCheckoutHistory();
  const {data:coinRows,error:coinError}=await sb.rpc('get_member_coin_by_qr',{p_qr_token:token});const coinRow=Array.isArray(coinRows)?coinRows[0]:coinRows;
  document.getElementById('myCoin').textContent=coinError?'— cc':Number(pick(coinRow,['balance','amount','coin_balance'])||0).toLocaleString()+' cc';
  const {data:couponRows,error:couponError}=await sb.rpc('get_member_coupons_by_qr',{p_qr_token:token});
  const keep=couponError?[]:(couponRows||[]),now=new Date();
  document.getElementById('myCoupons').innerHTML=couponError?'<div class="card muted">クーポンを取得できませんでした。</div>':keep.length?keep.map(x=>{const exp=x.expires_at,expired=exp&&new Date(exp)<now;return '<div class="card"><div class="row"><b>'+esc(x.coupon_name||'クーポン')+'</b><span class="pill">'+(expired?'期限切れ':'利用可能')+'</span></div>'+(exp?'<p class="muted">有効期限 '+esc(String(exp).slice(0,10))+'</p>':'')+'</div>'}).join(''):'<div class="card muted">現在利用できるクーポンはありません。</div>';
+}
+async function loadMyRating(token){
+ const card=document.getElementById('myRatingCard');if(!card)return;
+ const r=await sb.rpc('get_member_rating_by_qr',{p_qr_token:token}),p=Array.isArray(r.data)?r.data[0]:r.data;
+ if(r.error||!p||p.enabled!==true){card.classList.add('hidden');return}
+ card.classList.remove('hidden');
+ const rating=Number(p.current_rating||1500),peak=Number(p.peak_rating||1500),games=Number(p.games_played||0),wins=Number(p.wins||0),itm=Number(p.itm_count||0);
+ document.getElementById('myRatingValue').textContent=rating.toLocaleString();document.getElementById('myPeakRating').textContent=peak.toLocaleString();document.getElementById('myRatingStats').textContent=games+'戦 / 優勝'+wins+' / ITM'+itm;
+ if(games<5){document.getElementById('myRatingRank').textContent='PROVISIONAL';document.getElementById('myRatingProgress').textContent='仮Rating '+games+'/5';document.getElementById('myPeakRank').textContent='—';document.getElementById('myNextRank').textContent='正式ランクまであと'+(5-games)+'大会';return}
+ const rank=p.current_rank||'—',peakRank=p.peak_rank||rank,targets={BRONZE:1400,SILVER:1500,GOLD:1600,PLATINUM:1700,DIAMOND:1800},next={BRONZE:'SILVER',SILVER:'GOLD',GOLD:'PLATINUM',PLATINUM:'DIAMOND',DIAMOND:'CROWN'};
+ document.getElementById('myRatingRank').textContent=rank;document.getElementById('myRatingProgress').textContent='';document.getElementById('myPeakRank').textContent=peakRank;document.getElementById('myNextRank').textContent=next[rank]?next[rank]+'まであと'+Math.max(0,targets[rank]-rating)+'pt':'最高ランク CROWN';
 }
 function toggleMyCoinHistory(){const h=document.getElementById('myCoinHistory');if(!h)return;const opening=h.classList.contains('hidden');h.classList.toggle('hidden');if(opening)loadMyCoinHistory()}
 async function loadMyCoinHistory(){
