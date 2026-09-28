@@ -110,3 +110,18 @@ language sql security definer set search_path=public as $$
 $$;
 revoke all on function public.get_member_rating_by_qr(uuid) from public;
 grant execute on function public.get_member_rating_by_qr(uuid) to anon,authenticated;
+
+
+-- Rating分析用：QR本人の履歴だけ返す
+create or replace function public.get_member_rating_history_by_qr(p_qr_token uuid)
+returns table(event_date date,tournament_name text,field_size integer,finish_rank integer,itm_count integer,rating_before integer,rating_change integer,rating_after integer)
+language sql security definer set search_path=public as $$
+ select t.event_date,t.name::text,r.field_size,r.finish_rank,r.itm_count,r.rating_before,r.rating_change,r.rating_after
+ from public.members m
+ join public.poker_rating_results r on r.member_id=m.id
+ join public.tournaments t on t.id=r.tournament_id
+ where m.qr_token=p_qr_token
+ order by t.event_date asc,t.start_time asc,r.created_at asc
+$$;
+revoke all on function public.get_member_rating_history_by_qr(uuid) from public;
+grant execute on function public.get_member_rating_history_by_qr(uuid) to anon,authenticated;
