@@ -91,12 +91,20 @@ begin
  end loop;
  perform public.recalculate_poker_ratings();
 end $$;
-revoke all on function public.finalize_poker_rating_results(uuid,integer,integer,jsonb) from public;
+create or replace function public.delete_poker_rating_results(p_tournament_id uuid) returns void language plpgsql security definer set search_path=public as $
+begin
+ if not exists(select 1 from public.staff where auth_user_id=auth.uid() and active=true) then raise exception 'staff only'; end if;
+ if not exists(select 1 from public.poker_rating_results where tournament_id=p_tournament_id) then raise exception 'Rating結果が見つかりません'; end if;
+ delete from public.poker_rating_results where tournament_id=p_tournament_id;
+ perform public.recalculate_poker_ratings();
+end $;
+
+revoke all on function public.finalize_poker_rating_results(uuid,integer,integer,jsonb) from public;\nrevoke all on function public.delete_poker_rating_results(uuid) from public;
 revoke all on function public.correct_poker_rating_results(uuid,integer,integer,jsonb) from public;
 revoke all on function public.recalculate_poker_ratings() from public;
 grant execute on function public.finalize_poker_rating_results(uuid,integer,integer,jsonb) to authenticated;
 grant execute on function public.correct_poker_rating_results(uuid,integer,integer,jsonb) to authenticated;
-grant execute on function public.recalculate_poker_ratings() to authenticated;
+grant execute on function public.recalculate_poker_ratings() to authenticated;\ngrant execute on function public.delete_poker_rating_results(uuid) to authenticated;
 
 
 -- MY CROWN用：QR本人のRating情報だけ返す
