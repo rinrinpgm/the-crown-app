@@ -243,7 +243,18 @@ async function deleteCurrentBill(){
  if(r.error)return alert('伝票の削除エラー：'+r.error.message);
  activeBillTab=null;
  alert('伝票を削除しました。');
- await openMemberBill(activeBillMember);
+ const p=document.getElementById('adminBillPanel');if(p)p.remove();
+ if(!document.getElementById('memberBillBack')?.classList.contains('hidden')){
+   document.getElementById('memberDetail')?.classList.add('hidden');
+   document.getElementById('memberBillBack')?.classList.add('hidden');
+   document.getElementById('memberManageArea')?.classList.remove('hidden');
+   activeBillMember=null;
+   await loadOpenBills();
+   showTab('openBills');
+ }else{
+   activeBillMember=null;
+   closeMember();
+ }
 }
 async function addBillPreset(name,amount,ccEligible=false){const r=await sb.from('tab_items').insert({tab_id:activeBillTab.id,item_name:name,quantity:1,unit_price:amount,amount,source:'staff',cc_eligible:ccEligible});if(r.error)return alert(r.error.message);renderAdminBill()}
 let billingMenuCache=[];
