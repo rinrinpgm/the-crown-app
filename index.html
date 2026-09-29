@@ -122,33 +122,22 @@ function ratingGuideHtml(p){
  const tiers=[['BRONZE','〜1,399'],['SILVER','1,400〜1,499'],['GOLD','1,500〜1,599'],['PLATINUM','1,600〜1,699'],['DIAMOND','1,700〜1,799'],['CROWN','1,800〜']];
  return '<div class="card ratingGuide"><div class="ratingGuideTitle"><div class="ratingSectionTitle">RANK GUIDE</div><span>Ratingの目安</span></div>'+tiers.map(t=>'<div class="ratingGuideRow '+(games>=5&&current===t[0]?'current':'')+'"><b>'+t[0]+'</b><div class="ratingGuideRange">'+t[1]+'</div><div class="ratingGuideNow">'+(games>=5&&current===t[0]?'● 現在地':'')+'</div></div>').join('')+'<div class="ratingGuideNote">'+(games<5?'現在はPROVISIONALです。5大会終了後に正式ランクを表示します。':'● が現在のランクです。')+'</div></div>';
 }
+let tournamentRatingRows=[],tournamentChartMode='month',tournamentChartMonth='';
+function changeTournamentChartMode(mode){tournamentChartMode=mode;document.getElementById('tournamentChartMonthArea')?.classList.toggle('hidden',mode!=='month');document.getElementById('tournamentChartMonthBtn')?.classList.toggle('active',mode==='month');document.getElementById('tournamentChartAllBtn')?.classList.toggle('active',mode==='all');renderTournamentRatingChart()}
+function changeTournamentChartMonth(v){tournamentChartMonth=v;renderTournamentRatingChart()}
+function renderTournamentRatingChart(){let rows=tournamentRatingRows;if(tournamentChartMode==='month')rows=rows.filter(r=>String(r.event_date||'').slice(0,7)===tournamentChartMonth);drawRatingChart(rows)}
 function drawRatingChart(rows){
  const cv=document.getElementById('ratingChart');if(!cv)return;
- const dpr=window.devicePixelRatio||1,w=cv.clientWidth||320,h=220;
- cv.width=w*dpr;cv.height=h*dpr;
- const x=cv.getContext('2d');x.scale(dpr,dpr);x.clearRect(0,0,w,h);
- const vals=[1500,...rows.map(r=>Number(r.rating_after))];
- if(vals.length<2){x.fillStyle='#8d887e';x.font='13px sans-serif';x.fillText('大会結果が入るとRating推移を表示します',12,110);return}
- const rawMin=Math.min(...vals),rawMax=Math.max(...vals),span=Math.max(40,rawMax-rawMin);
- const step=span<=80?20:span<=160?50:100;
- const lo=Math.floor((rawMin-step)/step)*step,hi=Math.ceil((rawMax+step)/step)*step;
- const left=48,right=16,top=24,bottom=34,plotW=w-left-right,plotH=h-top-bottom;
- x.font='11px sans-serif';x.textBaseline='middle';
- const ticks=4;
- for(let i=0;i<=ticks;i++){
-  const v=Math.round(hi-(hi-lo)*i/ticks),y=top+plotH*i/ticks;
-  x.strokeStyle='#332a18';x.lineWidth=1;x.beginPath();x.moveTo(left,y);x.lineTo(w-right,y);x.stroke();
-  x.fillStyle='#9b968c';x.textAlign='right';x.fillText(v.toLocaleString(),left-8,y);
- }
- const pts=vals.map((v,i)=>({v,x:left+plotW*i/(vals.length-1),y:top+(hi-v)/(hi-lo)*plotH}));
+ const dpr=window.devicePixelRatio||1,w=cv.clientWidth||320,h=220;cv.width=w*dpr;cv.height=h*dpr;const x=cv.getContext('2d');x.scale(dpr,dpr);x.clearRect(0,0,w,h);
+ if(!rows.length){x.fillStyle='#8d887e';x.font='13px sans-serif';x.fillText('この期間の大会結果はありません',12,110);return}
+ const startRating=Number(rows[0].rating_before||1500),vals=[startRating,...rows.map(r=>Number(r.rating_after))];
+ const rawMin=Math.min(...vals),rawMax=Math.max(...vals),span=Math.max(40,rawMax-rawMin),step=span<=80?20:span<=160?50:100,lo=Math.floor((rawMin-step)/step)*step,hi=Math.ceil((rawMax+step)/step)*step;
+ const left=48,right=16,top=24,bottom=34,plotW=w-left-right,plotH=h-top-bottom;x.font='11px sans-serif';x.textBaseline='middle';
+ for(let i=0;i<=4;i++){const v=Math.round(hi-(hi-lo)*i/4),y=top+plotH*i/4;x.strokeStyle='#332a18';x.lineWidth=1;x.beginPath();x.moveTo(left,y);x.lineTo(w-right,y);x.stroke();x.fillStyle='#9b968c';x.textAlign='right';x.fillText(v.toLocaleString(),left-8,y)}
+ const pts=vals.map((v,i)=>({v,x:left+plotW*i/(vals.length-1),y:top+(hi-v)/(hi-lo)*plotH,date:i===0?(rows[0]?.event_date||''):rows[i-1]?.event_date}));
  x.strokeStyle='#d7ad4b';x.lineWidth=3;x.beginPath();pts.forEach((q,i)=>i?x.lineTo(q.x,q.y):x.moveTo(q.x,q.y));x.stroke();
- pts.forEach((q,i)=>{
-  x.fillStyle='#f1cf70';x.beginPath();x.arc(q.x,q.y,4,0,Math.PI*2);x.fill();
-  x.font='bold 11px sans-serif';x.textAlign=i===0?'left':i===pts.length-1?'right':'center';x.textBaseline='bottom';
-  x.fillStyle='#f0d17a';x.fillText(q.v.toLocaleString(),q.x,q.y-8);
- });
- x.font='10px sans-serif';x.fillStyle='#77736b';x.textBaseline='top';
- pts.forEach((q,i)=>{let label=i===0?'START':String(i);x.textAlign=i===0?'left':i===pts.length-1?'right':'center';x.fillText(label,q.x,h-bottom+10)});
+ pts.forEach((q,i)=>{x.fillStyle='#f1cf70';x.beginPath();x.arc(q.x,q.y,4,0,Math.PI*2);x.fill();x.font='bold 11px sans-serif';x.textAlign=i===0?'left':i===pts.length-1?'right':'center';x.textBaseline='bottom';x.fillStyle='#f0d17a';x.fillText(q.v.toLocaleString(),q.x,q.y-8)});
+ x.font='10px sans-serif';x.fillStyle='#77736b';x.textBaseline='top';const stepLabel=Math.max(1,Math.ceil((pts.length-1)/5));pts.forEach((q,i)=>{if(i!==0&&i!==pts.length-1&&i%stepLabel!==0)return;let d=String(q.date||''),label=d?d.slice(5).replace('-','/'):'START';x.textAlign=i===0?'left':i===pts.length-1?'right':'center';x.fillText(label,q.x,h-bottom+10)});
 }
 function ratingResultHtml(r){const ch=Number(r.rating_change||0),date=String(r.event_date||'').replace(/^\d{4}-/,'').replace('-','/');return '<div class="ratingResult"><div class="ratingResultDate">'+esc(date)+'</div><div class="ratingResultMain"><b>'+esc(r.tournament_name||'Tournament')+'</b><span>'+r.finish_rank+'位 / '+r.field_size+'人'+(Number(r.itm_count)>0&&Number(r.finish_rank)<=Number(r.itm_count)?' ・ ITM':'')+'</span></div><strong class="'+(ch>=0?'up':'down')+'">'+(ch>=0?'+':'')+ch+'<small> Rating</small></strong></div>'}
 function toggleAllRatingResults(){const recent=document.getElementById('recentRatingResults'),all=document.getElementById('allRatingResults'),btn=document.querySelector('.ratingAllBtn');if(!all)return;const opening=all.classList.contains('hidden');all.classList.toggle('hidden');recent?.classList.toggle('hidden',opening);if(btn)btn.textContent=opening?'直近3件に戻す ‹':'詳細を見る ›'}
@@ -189,8 +178,8 @@ async function loadMyRatingAnalysis(){
  const [pr,hr]=await Promise.all([sb.rpc('get_member_rating_by_qr',{p_qr_token:token}),sb.rpc('get_member_rating_history_by_qr',{p_qr_token:token})]);const p=Array.isArray(pr.data)?pr.data[0]:pr.data;
  if(pr.error||!p){box.innerHTML='<div class="card"><h2>MY RATING</h2><p class="muted">Poker Rating参加後に、ここへ自分の分析データが表示されます。</p></div>';return}
  if(hr.error){box.innerHTML='<div class="card"><h2>MY RATING</h2><p class="muted">Rating履歴の取得準備が必要です。</p></div>';return}
- const rows=hr.data||[],games=Number(p.games_played||0),wins=Number(p.wins||0),itm=Number(p.itm_count||0),avg=rows.length?(rows.reduce((a,r)=>a+Number(r.finish_rank)/Number(r.field_size),0)/rows.length):0,rank=ratingRank(p);
- box.innerHTML='<div class="ratingHero"><small>MY POKER RATING</small><div class="ratingHeroRow"><div><div class="ratingBig">'+Number(p.current_rating||1500).toLocaleString()+'</div><b class="ratingRankName">'+esc(rank)+'</b></div><div class="ratingGoal">'+esc(ratingNextText(p))+'</div></div><div class="ratingPeak">最高Rating '+Number(p.peak_rating||1500).toLocaleString()+(games>=5?' / 最高到達 '+esc(p.peak_rank||rank):'')+'</div></div><div class="card"><div class="ratingSectionTitle">RATING HISTORY</div><canvas id="ratingChart" class="ratingChart"></canvas></div>'+ratingGuideHtml(p)+'<div class="ratingStatGrid"><div><small>PLAY</small><b>'+games+'</b><span>大会</span></div><div><small>WIN</small><b>'+wins+'</b><span>優勝</span></div><div><small>ITM</small><b>'+itm+'</b><span>'+(games?Math.round(itm/games*100):0)+'%</span></div><div><small>AVG</small><b>'+(rows.length?Math.round(avg*100):'—')+'</b><span>'+(rows.length?'上位%平均':'データなし')+'</span></div></div><div class="card"><div class="ratingResultsHead"><div class="ratingSectionTitle">最近の大会結果</div>'+(rows.length>3?'<button class="ratingAllBtn" onclick="toggleAllRatingResults()">詳細を見る ›</button>':'')+'</div><div id="recentRatingResults">'+(rows.length?rows.slice(-3).reverse().map(r=>ratingResultHtml(r)).join(''):'<div class="muted">まだ大会結果がありません。</div>')+'</div><div id="allRatingResults" class="hidden">'+(rows.length?rows.slice().reverse().map(r=>ratingResultHtml(r)).join(''):'')+'</div></div>';window._myRatingRows=rows;requestAnimationFrame(()=>drawRatingChart(rows));
+ const rows=hr.data||[];tournamentRatingRows=rows;const ratingMonths=[...new Set(rows.map(r=>String(r.event_date||'').slice(0,7)))].filter(Boolean).reverse();tournamentChartMonth=ratingMonths[0]||new Date().toISOString().slice(0,7);tournamentChartMode='month';const games=Number(p.games_played||0),wins=Number(p.wins||0),itm=Number(p.itm_count||0),avg=rows.length?(rows.reduce((a,r)=>a+Number(r.finish_rank)/Number(r.field_size),0)/rows.length):0,rank=ratingRank(p);
+ box.innerHTML='<div class="ratingHero"><small>MY POKER RATING</small><div class="ratingHeroRow"><div><div class="ratingBig">'+Number(p.current_rating||1500).toLocaleString()+'</div><b class="ratingRankName">'+esc(rank)+'</b></div><div class="ratingGoal">'+esc(ratingNextText(p))+'</div></div><div class="ratingPeak">最高Rating '+Number(p.peak_rating||1500).toLocaleString()+(games>=5?' / 最高到達 '+esc(p.peak_rank||rank):'')+'</div></div><div class="card"><div class="ratingSectionTitle">RATING HISTORY</div><div class="rankingTabs" style="margin-top:12px"><button class="active" id="tournamentChartMonthBtn" onclick="changeTournamentChartMode(\'month\')">月間</button><button id="tournamentChartAllBtn" onclick="changeTournamentChartMode(\'all\')">すべて</button></div><div id="tournamentChartMonthArea" class="field compactField" style="margin-top:10px"><label>表示する月</label><select onchange="changeTournamentChartMonth(this.value)">'+ratingMonths.map(m=>'<option value="'+m+'" '+(m===tournamentChartMonth?'selected':'')+'>'+m.replace('-', '年')+'月</option>').join('')+'</select></div><canvas id="ratingChart" class="ratingChart"></canvas></div>'+ratingGuideHtml(p)+'<div class="ratingStatGrid"><div><small>PLAY</small><b>'+games+'</b><span>大会</span></div><div><small>WIN</small><b>'+wins+'</b><span>優勝</span></div><div><small>ITM</small><b>'+itm+'</b><span>'+(games?Math.round(itm/games*100):0)+'%</span></div><div><small>AVG</small><b>'+(rows.length?Math.round(avg*100):'—')+'</b><span>'+(rows.length?'上位%平均':'データなし')+'</span></div></div><div class="card"><div class="ratingResultsHead"><div class="ratingSectionTitle">最近の大会結果</div>'+(rows.length>3?'<button class="ratingAllBtn" onclick="toggleAllRatingResults()">詳細を見る ›</button>':'')+'</div><div id="recentRatingResults">'+(rows.length?rows.slice(-3).reverse().map(r=>ratingResultHtml(r)).join(''):'<div class="muted">まだ大会結果がありません。</div>')+'</div><div id="allRatingResults" class="hidden">'+(rows.length?rows.slice().reverse().map(r=>ratingResultHtml(r)).join(''):'')+'</div></div>';window._myRatingRows=rows;requestAnimationFrame(renderTournamentRatingChart);
 }
 function toggleMyCoinHistory(){const h=document.getElementById('myCoinHistory');if(!h)return;const opening=h.classList.contains('hidden');h.classList.toggle('hidden');if(opening)loadMyCoinHistory()}
 async function loadMyCoinHistory(){
