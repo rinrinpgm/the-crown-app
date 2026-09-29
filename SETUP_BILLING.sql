@@ -22,3 +22,35 @@ do $$ begin create policy "staff ring moves" on public.ring_movements for all to
 do $$ begin create policy "member ring moves" on public.ring_movements for select to authenticated using(exists(select 1 from public.ring_sessions r join public.members m on m.id=r.member_id where r.id=session_id and m.auth_user_id=auth.uid())); exception when duplicate_object then null; end $$;
 insert into public.order_menu(name,price,category,display_order) select * from(values('コーラ',500,'ドリンク',10),('ジンジャーエール',500,'ドリンク',20),('ウーロン茶',500,'ドリンク',30))v(name,price,category,display_order) where not exists(select 1 from public.order_menu);
 do $$ begin alter publication supabase_realtime add table public.customer_orders; exception when duplicate_object then null; end $$;
+
+-- Staff-only hard delete for an unpaid bill. Child rows are removed by ON DELETE CASCADE.
+create or replace function public.staff_delete_customer_tab(p_tab_id uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not exists (
+    select 1 from public.staff s
+    where s.auth_user_id = auth.uid() and s.active
+  ) then
+    raise exception 'staff only';
+  end if;
+
+  if not exists (
+    select 1 from public.customer_tabs t
+    where t.id = p_tab_id and t.status = 'open'
+  ) then
+    raise exception 'open tab not found';
+  end if;
+
+  delete from public.customer_tabs
+  where id = p_tab_id and status = 'open';
+
+  return found;
+end;
+$$;
+
+revoke all on function public.staff_delete_customer_tab(uuid) from public;
+grant execute on function public.staff_delete_customer_tab(uuid) to authenticated;
