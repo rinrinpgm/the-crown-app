@@ -231,8 +231,21 @@ async function renderAdminBill(){
  '<div class="quickGrid" style="margin-top:12px"><button class="btn" onclick="openBillingMenu()">商品を追加</button><button class="btn2" onclick="ringActionMenu()">リング差額精算</button></div><div id="billingMenuPanel"></div>'+
  '<div style="margin-top:14px">'+(active.length?active.map(x=>'<div class="billLine"><span>'+esc(x.item_name)+(x.quantity>1?' ×'+x.quantity:'')+'<small class="muted" style="display:block">'+esc(x.source||'staff')+(x.cc_eligible?' ・ CC使用可':' ・ CC使用不可')+'</small></span><span><b>¥'+Number(x.amount).toLocaleString()+'</b> <button class="btn2" onclick="editBillItem(\''+x.id+'\','+Number(x.amount||0)+')">金額変更</button> <button class="btn2" onclick="voidBillItem(\''+x.id+'\')">取消</button></span></div>').join(''):'<div class="muted">明細はありません。</div>')+'</div>'+
  '<div class="card" style="margin-top:16px"><div class="row"><div><b class="gold">割引・チケット</b><div class="muted">割引券・無料券・ドリンクチケットを伝票に反映</div></div><button class="btn2" onclick="showTicketMenu()">適用する</button></div><div id="ticketMenu"></div></div><div class="card" style="margin-top:16px"><b class="gold">Crown coinで支払う</b><div class="row"><span>保有CC</span><b>'+ccBalance.toLocaleString()+'CC</b></div><div class="row"><span>CC使用可能な明細</span><b>¥'+ccEligible.toLocaleString()+'</b></div><div class="row"><span>今回使用できる上限</span><b>'+ccMax.toLocaleString()+'CC</b></div><input id="ccUseAmount" type="number" min="0" max="'+ccMax+'" step="1" value="'+ccMax+'" placeholder="使用するCC"><div class="muted" style="margin-top:8px">Crown coinはトーナメント・リングにのみ使用できます。</div></div>'+
- '<button class="btn" style="width:100%;margin-top:16px" onclick="closeBill()">会計確認へ</button><div id="ringPanel"></div>';
+ '<button class="btn" style="width:100%;margin-top:16px" onclick="closeBill()">会計確認へ</button><div id="ringPanel"></div>'+ '<div class="card memberDangerZone" style="margin-top:18px!important"><div><b class="dangerText">伝票削除</b><div class="muted">この未会計伝票と明細をすべて削除します。</div></div><button class="btn2 danger" onclick="deleteCurrentBill()">伝票を削除</button></div>';
  d.appendChild(panel);
+}
+async function deleteCurrentBill(){
+ if(!activeBillTab||!activeBillMember)return alert('削除する伝票がありません。');
+ const name=activeBillMember.display_name||activeBillMember.nickname||'この会員';
+ if(!confirm(name+'の未会計伝票を削除しますか？\n\n明細もすべて削除されます。'))return;
+ const tabId=activeBillTab.id;
+ const ir=await sb.from('tab_items').delete().eq('tab_id',tabId);
+ if(ir.error)return alert('伝票明細の削除エラー：'+ir.error.message);
+ const tr=await sb.from('customer_tabs').delete().eq('id',tabId);
+ if(tr.error)return alert('伝票の削除エラー：'+tr.error.message);
+ activeBillTab=null;
+ alert('伝票を削除しました。');
+ await openMemberBill(activeBillMember);
 }
 async function addBillPreset(name,amount,ccEligible=false){const r=await sb.from('tab_items').insert({tab_id:activeBillTab.id,item_name:name,quantity:1,unit_price:amount,amount,source:'staff',cc_eligible:ccEligible});if(r.error)return alert(r.error.message);renderAdminBill()}
 let billingMenuCache=[];
