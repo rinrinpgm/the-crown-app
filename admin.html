@@ -113,12 +113,21 @@ async function saveRingRatingResult(){
  document.getElementById('ringRatingNet').value='';msg.innerHTML='<span class="ok">登録しました。</span>';await loadRingRatingResults();
 }
 function toggleRingRatingHistory(){const area=document.getElementById('ringRatingHistoryArea'),arrow=document.getElementById('ringRatingHistoryArrow');if(!area)return;const opening=area.classList.contains('hidden');area.classList.toggle('hidden');if(arrow)arrow.textContent=opening?'▲':'▼';if(opening)loadRingRatingResults()}
+async function editRingRatingResult(id,date,net){
+ const d=prompt('日付を修正してください（YYYY-MM-DD）',date);if(d===null)return;
+ const n=prompt('日別純増を修正してください',net);if(n===null)return;const v=Number(n);if(!/^\d{4}-\d{2}-\d{2}$/.test(d)||!Number.isFinite(v))return alert('日付または純増の入力が正しくありません。');
+ const r=await sb.rpc('staff_update_ring_rating_result',{p_id:id,p_play_date:d,p_net_change:v});if(r.error)return alert(r.error.message);await loadRingRatingResults();
+}
+async function deleteRingRatingResult(id,date,net){
+ if(!confirm(date+' / '+(Number(net)>=0?'+':'')+Number(net).toLocaleString()+' を削除しますか？'))return;
+ const r=await sb.rpc('staff_delete_ring_rating_result',{p_id:id});if(r.error)return alert(r.error.message);await loadRingRatingResults();
+}
 async function loadRingRatingResults(memberOverride){
  const member=typeof memberOverride==='string'&&memberOverride?memberOverride:(document.getElementById('ringRatingHistoryMember')?.value||document.getElementById('ringRatingMember')?.value),h=document.getElementById('ringRatingResults');if(!h)return;if(!member){h.innerHTML='<span class="muted">プレイヤーを選択してください。</span>';return}
  const r=await sb.rpc('staff_get_ring_rating_results',{p_member_id:member});
  if(r.error){h.innerHTML='<span class="err">リングRating用DBの初期設定が必要です。</span>';return}
  let total=0;const rows=(r.data||[]).map(x=>{total+=Number(x.net_change||0);return {...x,cumulative:total}});
- h.innerHTML='<div class="row" style="margin-bottom:12px"><b>累計純増</b><b class="gold" style="font-size:22px">'+(total>=0?'+':'')+total.toLocaleString()+'</b></div>'+(rows.length?rows.slice().reverse().map(x=>'<div class="billLine"><span><b>'+esc(x.play_date)+'</b><small class="muted" style="display:block">累計 '+(x.cumulative>=0?'+':'')+x.cumulative.toLocaleString()+'</small></span><b class="'+(Number(x.net_change)>=0?'gold':'')+'">'+(Number(x.net_change)>=0?'+':'')+Number(x.net_change).toLocaleString()+'</b></div>').join(''):'<span class="muted">まだリング成績がありません。</span>');
+ h.innerHTML='<div class="row" style="margin-bottom:12px"><b>累計純増</b><b class="gold" style="font-size:22px">'+(total>=0?'+':'')+total.toLocaleString()+'</b></div>'+(rows.length?rows.slice().reverse().map(x=>'<div class="billLine"><span><b>'+esc(x.play_date)+'</b><small class="muted" style="display:block">累計 '+(x.cumulative>=0?'+':'')+x.cumulative.toLocaleString()+'</small></span><div style="display:flex;align-items:center;gap:10px"><b class="'+(Number(x.net_change)>=0?'gold':'')+'">'+(Number(x.net_change)>=0?'+':'')+Number(x.net_change).toLocaleString()+'</b><button class="btn2" style="padding:7px 10px" onclick="editRingRatingResult(\''+x.id+'\',\''+esc(x.play_date)+'\','+Number(x.net_change)+')">修正</button><button class="danger" style="padding:7px 10px" onclick="deleteRingRatingResult(\''+x.id+'\',\''+esc(x.play_date)+'\','+Number(x.net_change)+')">削除</button></div></div>').join(''):'<span class="muted">まだリング成績がありません。</span>');
 }
 async function loadRatingAdmin(){
  const [mr,pr,tr]=await Promise.all([sb.from('members').select('*').eq('status','active').order('member_number'),sb.from('poker_rating_profiles').select('*'),sb.from('tournaments').select('id,name,event_date,start_time').order('event_date',{ascending:false}).limit(100)]);
