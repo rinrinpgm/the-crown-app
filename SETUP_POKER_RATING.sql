@@ -133,3 +133,30 @@ language sql security definer set search_path=public as $$
 $$;
 revoke all on function public.get_member_rating_history_by_qr(uuid) from public;
 grant execute on function public.get_member_rating_history_by_qr(uuid) to anon,authenticated;
+
+
+-- Ring Rating / cumulative net results
+create table if not exists public.ring_rating_results (
+ id uuid primary key default gen_random_uuid(),
+ member_id uuid not null references public.members(id) on delete cascade,
+ play_date date not null,
+ net_change integer not null,
+ created_at timestamptz not null default now(),
+ created_by uuid default auth.uid()
+);
+create index if not exists ring_rating_results_member_date_idx on public.ring_rating_results(member_id,play_date,created_at);
+alter table public.ring_rating_results enable row level security;
+
+create or replace function public.staff_add_ring_rating_result(p_member_id uuid,p_play_date date,p_net_change integer)
+returns uuid language plpgsql security definer set search_path=public as $$
+declare v_id uuid;
+begin
+ if not exists(select 1 from public.staff where auth_user_id=auth.uid() and active=true) then raise exception 'staff only'; end if;
+ insert into public.ring_rating_results(member_id,play_date,net_change,created_by) values(p_member_id,p_play_date,p_net_change,auth.uid()) returning id into v_id;
+ return v_id;
+end $$;
+revoke all on function public.staff_add_ring_rating_result(uuid,date,integer) from public;
+grant execute on function public.staff_add_ring_rating_result(uuid,date,integer) to authenticated;
+
+drop policy if exists "staff read ring rating results" on public.ring_rating_results;
+create policy "staff read ring rating results" on public.ring_rating_results for select to authenticated using(exists(select 1 from public.staff where auth_user_id=auth.uid() and active=true));
