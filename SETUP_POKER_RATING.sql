@@ -188,3 +188,25 @@ language sql security definer set search_path=public as $$
 $$;
 revoke all on function public.get_member_ring_rating_by_qr(uuid) from public;
 grant execute on function public.get_member_ring_rating_by_qr(uuid) to anon,authenticated;
+
+
+-- Staff edit/delete Ring Rating entries
+create or replace function public.staff_update_ring_rating_result(p_id uuid,p_play_date date,p_net_change integer)
+returns void language plpgsql security definer set search_path=public as $$
+begin
+ if not exists(select 1 from public.staff where auth_user_id=auth.uid() and active=true) then raise exception 'staff only'; end if;
+ update public.ring_rating_results set play_date=p_play_date,net_change=p_net_change where id=p_id;
+ if not found then raise exception 'result not found'; end if;
+end;$$;
+revoke all on function public.staff_update_ring_rating_result(uuid,date,integer) from public;
+grant execute on function public.staff_update_ring_rating_result(uuid,date,integer) to authenticated;
+
+create or replace function public.staff_delete_ring_rating_result(p_id uuid)
+returns void language plpgsql security definer set search_path=public as $$
+begin
+ if not exists(select 1 from public.staff where auth_user_id=auth.uid() and active=true) then raise exception 'staff only'; end if;
+ delete from public.ring_rating_results where id=p_id;
+ if not found then raise exception 'result not found'; end if;
+end;$$;
+revoke all on function public.staff_delete_ring_rating_result(uuid) from public;
+grant execute on function public.staff_delete_ring_rating_result(uuid) to authenticated;
