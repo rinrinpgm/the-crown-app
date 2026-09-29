@@ -21,7 +21,7 @@
 <section id="ranking" class="page"><h1 class="title">ランキング</h1>
 <div class="rankingTabs"><button class="active" id="rankTabMonthly" onclick="showRankingTab('monthly')">月間</button><button id="rankTabRating" onclick="showRankingTab('rating')">レーティング</button></div>
 <div id="rankingMonthly"><div class="card muted">月間ランキングは準備中です。</div></div>
-<div id="rankingRating" class="hidden"><div id="ratingAnalysis"><div class="card muted">会員証をこの端末に保存すると、自分のRating分析を確認できます。</div></div></div></section>
+<div id="rankingRating" class="hidden"><div class="rankingTabs" style="margin-bottom:14px"><button class="active" id="publicRatingTournamentBtn" onclick="switchPublicRatingMode('tournament')">トーナメント</button><button id="publicRatingRingBtn" onclick="switchPublicRatingMode('ring')">リング</button></div><div id="publicTournamentRating"><div id="ratingAnalysis"><div class="card muted">会員証をこの端末に保存すると、自分のRating分析を確認できます。</div></div></div><div id="publicRingRating" class="hidden"><div id="ringRatingAnalysis"><div class="card muted">会員証をこの端末に保存すると、自分のリング成績を確認できます。</div></div></div></div></section>
 <section id="my" class="page"><h1 class="title">MY CROWN</h1>
 <div id="myQrGuide" class="card"><div class="gold" style="font-size:12px;letter-spacing:.12em">MY CROWN</div><h2 style="margin:7px 0">会員QRからアクセスしてください</h2><p class="muted">店舗で発行された会員QRを読み取ると、Crown coin・チケット・お会計・会計履歴を確認できます。</p></div>
 <div id="myMember" class="hidden myCrown">
@@ -146,6 +146,25 @@ function drawRatingChart(rows){
 }
 function ratingResultHtml(r){const ch=Number(r.rating_change||0),date=String(r.event_date||'').replace(/^\d{4}-/,'').replace('-','/');return '<div class="ratingResult"><div class="ratingResultDate">'+esc(date)+'</div><div class="ratingResultMain"><b>'+esc(r.tournament_name||'Tournament')+'</b><span>'+r.finish_rank+'位 / '+r.field_size+'人'+(Number(r.itm_count)>0&&Number(r.finish_rank)<=Number(r.itm_count)?' ・ ITM':'')+'</span></div><strong class="'+(ch>=0?'up':'down')+'">'+(ch>=0?'+':'')+ch+'<small> Rating</small></strong></div>'}
 function toggleAllRatingResults(){const recent=document.getElementById('recentRatingResults'),all=document.getElementById('allRatingResults'),btn=document.querySelector('.ratingAllBtn');if(!all)return;const opening=all.classList.contains('hidden');all.classList.toggle('hidden');recent?.classList.toggle('hidden',opening);if(btn)btn.textContent=opening?'直近3件に戻す ‹':'詳細を見る ›'}
+function switchPublicRatingMode(mode){
+ const isTour=mode!=='ring';document.getElementById('publicTournamentRating')?.classList.toggle('hidden',!isTour);document.getElementById('publicRingRating')?.classList.toggle('hidden',isTour);
+ document.getElementById('publicRatingTournamentBtn')?.classList.toggle('active',isTour);document.getElementById('publicRatingRingBtn')?.classList.toggle('active',!isTour);if(!isTour)loadMyRingRatingAnalysis();
+}
+function drawRingNetChart(rows){
+ const c=document.getElementById('ringNetChart');if(!c||!rows.length)return;const dpr=devicePixelRatio||1,w=c.clientWidth||320,h=220;c.width=w*dpr;c.height=h*dpr;const x=c.getContext('2d');x.scale(dpr,dpr);x.clearRect(0,0,w,h);
+ const vals=[0,...rows.map(r=>Number(r.cumulative||0))],min=Math.min(...vals),max=Math.max(...vals),span=Math.max(1,max-min),pad=34,gw=w-pad*2,gh=h-pad*2;
+ x.font='11px sans-serif';x.fillStyle='#a9a39a';x.strokeStyle='#3a3327';x.lineWidth=1;for(let i=0;i<5;i++){const v=max-span*i/4,y=pad+gh*i/4;x.beginPath();x.moveTo(pad,y);x.lineTo(w-pad,y);x.stroke();x.fillText(Math.round(v).toLocaleString(),2,y+4)}
+ const zeroY=pad+(max/span)*gh;if(zeroY>=pad&&zeroY<=h-pad){x.strokeStyle='#776d5b';x.beginPath();x.moveTo(pad,zeroY);x.lineTo(w-pad,zeroY);x.stroke()}
+ const pts=[{date:'START',cumulative:0},...rows],den=Math.max(1,pts.length-1);x.strokeStyle='#d5aa4a';x.lineWidth=2.5;x.beginPath();pts.forEach((r,i)=>{const px=pad+gw*i/den,py=pad+(max-Number(r.cumulative))/span*gh;i?x.lineTo(px,py):x.moveTo(px,py)});x.stroke();
+ x.fillStyle='#d5aa4a';pts.forEach((r,i)=>{const px=pad+gw*i/den,py=pad+(max-Number(r.cumulative))/span*gh;x.beginPath();x.arc(px,py,3,0,Math.PI*2);x.fill();if(i===0||i===pts.length-1||pts.length<=7){x.fillStyle='#a9a39a';x.fillText(r.date==='START'?'START':String(r.play_date||'').slice(5).replace('-','/'),Math.max(2,px-14),h-8);x.fillStyle='#d5aa4a'}})
+}
+async function loadMyRingRatingAnalysis(){
+ if(!sb&&!init())return;const box=document.getElementById('ringRatingAnalysis');if(!box)return;const token=new URLSearchParams(location.search).get('member')||localStorage.getItem('crown_member_token')||'';
+ if(!token){box.innerHTML='<div class="card"><h2>MY RING</h2><p class="muted">会員QRを読み取り、この端末に会員証を保存すると自分のリング成績を表示します。</p></div>';return}
+ const r=await sb.rpc('get_member_ring_rating_by_qr',{p_qr_token:token});if(r.error){box.innerHTML='<div class="card"><h2>MY RING</h2><p class="muted">リング成績の取得準備が必要です。</p></div>';return}
+ let total=0;const rows=(r.data||[]).map(v=>{total+=Number(v.net_change||0);return {...v,cumulative:total}}),best=rows.length?Math.max(0,...rows.map(v=>v.cumulative)):0;
+ box.innerHTML='<div class="ratingHero"><small>MY RING RESULT</small><div class="ratingBig">'+(total>=0?'+':'')+total.toLocaleString()+'</div><b class="ratingRankName">累計純増</b><div class="ratingPeak">最高累計 '+(best>=0?'+':'')+best.toLocaleString()+'</div></div><div class="card"><div class="ratingSectionTitle">累計純増 HISTORY</div>'+(rows.length?'<canvas id="ringNetChart" class="ratingChart"></canvas>':'<div class="muted" style="padding-top:12px">まだリング成績がありません。</div>')+'</div><div class="card"><div class="ratingSectionTitle">最近のリング成績</div>'+(rows.length?rows.slice(-5).reverse().map(v=>'<div class="ratingResult"><div class="ratingResultDate">'+esc(String(v.play_date||'').replaceAll('-','/'))+'</div><div class="ratingResultMain"><b>日別純増</b><span>累計 '+(v.cumulative>=0?'+':'')+v.cumulative.toLocaleString()+'</span></div><strong class="'+(Number(v.net_change)>=0?'up':'down')+'">'+(Number(v.net_change)>=0?'+':'')+Number(v.net_change).toLocaleString()+'</strong></div>').join(''):'<div class="muted">まだリング成績がありません。</div>')+'</div>';requestAnimationFrame(()=>drawRingNetChart(rows));
+}
 async function loadMyRatingAnalysis(){
  if(!sb&&!init())return;const box=document.getElementById('ratingAnalysis');if(!box)return;const token=new URLSearchParams(location.search).get('member')||localStorage.getItem('crown_member_token')||'';
  if(!token){box.innerHTML='<div class="card"><h2>MY RATING</h2><p class="muted">会員QRを読み取り、この端末に会員証を保存すると自分専用のRating分析を表示します。</p></div>';return}
