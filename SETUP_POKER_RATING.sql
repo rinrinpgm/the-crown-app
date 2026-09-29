@@ -174,3 +174,17 @@ language sql security definer set search_path=public as $$
 $$;
 revoke all on function public.staff_get_ring_rating_results(uuid) from public;
 grant execute on function public.staff_get_ring_rating_results(uuid) to authenticated;
+
+
+-- MY CROWN: QR owner can read only their own Ring Rating history
+create or replace function public.get_member_ring_rating_by_qr(p_qr_token uuid)
+returns table(play_date date,net_change integer,created_at timestamptz)
+language sql security definer set search_path=public as $$
+ select r.play_date,r.net_change,r.created_at
+ from public.members m
+ join public.ring_rating_results r on r.member_id=m.id
+ where m.qr_token=p_qr_token
+ order by r.play_date asc,r.created_at asc
+$$;
+revoke all on function public.get_member_ring_rating_by_qr(uuid) from public;
+grant execute on function public.get_member_ring_rating_by_qr(uuid) to anon,authenticated;
