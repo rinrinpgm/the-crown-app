@@ -36,7 +36,13 @@ async function loadOpenBills(){
  const h=document.getElementById('openBillsList');if(!h)return;h.innerHTML='<div class="card muted">読み込み中...</div>';
  const tr=await sb.from('customer_tabs').select('*').eq('status','open').order('opened_at',{ascending:false});
  if(tr.error){h.innerHTML='<div class="card err">'+esc(tr.error.message)+'</div>';return}
- const tabs=tr.data||[];if(!tabs.length){h.innerHTML='<div class="card muted">現在、未会計の伝票はありません。</div>';return}
+ const allTabs=tr.data||[];if(!allTabs.length){h.innerHTML='<div class="card muted">現在、未会計の伝票はありません。</div>';return}
+ const allTids=allTabs.map(x=>x.id);
+ const allItems=await sb.from('tab_items').select('tab_id,amount,voided').in('tab_id',allTids);
+ if(allItems.error){h.innerHTML='<div class="card err">'+esc(allItems.error.message)+'</div>';return}
+ const hasActive=new Set((allItems.data||[]).filter(x=>!x.voided).map(x=>String(x.tab_id)));
+ const tabs=allTabs.filter(t=>hasActive.has(String(t.id)));
+ if(!tabs.length){h.innerHTML='<div class="card muted">現在、未会計の伝票はありません。</div>';return}
  const mids=[...new Set(tabs.map(x=>x.member_id).filter(Boolean))],tids=tabs.map(x=>x.id);
  const [mr,ir]=await Promise.all([sb.from('members').select('id,member_number,member_no,nickname,display_name').in('id',mids),sb.from('tab_items').select('tab_id,amount,voided').in('tab_id',tids)]);
  const mm=Object.fromEntries((mr.data||[]).map(x=>[x.id,x])),totals={};
