@@ -160,3 +160,17 @@ grant execute on function public.staff_add_ring_rating_result(uuid,date,integer)
 
 drop policy if exists "staff read ring rating results" on public.ring_rating_results;
 create policy "staff read ring rating results" on public.ring_rating_results for select to authenticated using(exists(select 1 from public.staff where auth_user_id=auth.uid() and active=true));
+
+
+-- Staff-safe read RPC for Ring Rating history
+create or replace function public.staff_get_ring_rating_results(p_member_id uuid)
+returns table(id uuid,member_id uuid,play_date date,net_change integer,created_at timestamptz)
+language sql security definer set search_path=public as $$
+ select r.id,r.member_id,r.play_date,r.net_change,r.created_at
+ from public.ring_rating_results r
+ where r.member_id=p_member_id
+   and exists(select 1 from public.staff s where s.auth_user_id=auth.uid() and s.active=true)
+ order by r.play_date asc,r.created_at asc
+$$;
+revoke all on function public.staff_get_ring_rating_results(uuid) from public;
+grant execute on function public.staff_get_ring_rating_results(uuid) to authenticated;
