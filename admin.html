@@ -239,10 +239,8 @@ async function deleteCurrentBill(){
  const name=activeBillMember.display_name||activeBillMember.nickname||'この会員';
  if(!confirm(name+'の未会計伝票を削除しますか？\n\n明細もすべて削除されます。'))return;
  const tabId=activeBillTab.id;
- const ir=await sb.from('tab_items').delete().eq('tab_id',tabId);
- if(ir.error)return alert('伝票明細の削除エラー：'+ir.error.message);
- const tr=await sb.from('customer_tabs').delete().eq('id',tabId);
- if(tr.error)return alert('伝票の削除エラー：'+tr.error.message);
+ const r=await sb.rpc('staff_delete_customer_tab',{p_tab_id:tabId});
+ if(r.error)return alert('伝票の削除エラー：'+r.error.message);
  activeBillTab=null;
  alert('伝票を削除しました。');
  await openMemberBill(activeBillMember);
