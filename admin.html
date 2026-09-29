@@ -112,7 +112,7 @@ async function saveRingRatingResult(){
 }
 async function loadRingRatingResults(){
  const member=document.getElementById('ringRatingMember')?.value,h=document.getElementById('ringRatingResults');if(!h)return;if(!member){h.innerHTML='<span class="muted">プレイヤーを選択してください。</span>';return}
- const r=await sb.from('ring_rating_results').select('*').eq('member_id',member).order('play_date').order('created_at');
+ const r=await sb.rpc('staff_get_ring_rating_results',{p_member_id:member});
  if(r.error){h.innerHTML='<span class="err">リングRating用DBの初期設定が必要です。</span>';return}
  let total=0;const rows=(r.data||[]).map(x=>{total+=Number(x.net_change||0);return {...x,cumulative:total}});
  h.innerHTML='<div class="row" style="margin-bottom:12px"><b>累計純増</b><b class="gold" style="font-size:22px">'+(total>=0?'+':'')+total.toLocaleString()+'</b></div>'+(rows.length?rows.slice().reverse().map(x=>'<div class="billLine"><span><b>'+esc(x.play_date)+'</b><small class="muted" style="display:block">累計 '+(x.cumulative>=0?'+':'')+x.cumulative.toLocaleString()+'</small></span><b class="'+(Number(x.net_change)>=0?'gold':'')+'">'+(Number(x.net_change)>=0?'+':'')+Number(x.net_change).toLocaleString()+'</b></div>').join(''):'<span class="muted">まだリング成績がありません。</span>');
