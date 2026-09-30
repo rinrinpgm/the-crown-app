@@ -210,3 +210,45 @@ begin
 end;$$;
 revoke all on function public.staff_delete_ring_rating_result(uuid) from public;
 grant execute on function public.staff_delete_ring_rating_result(uuid) to authenticated;
+
+
+-- Public Rating opt-in leaderboard
+alter table public.poker_rating_profiles add column if not exists is_public boolean not null default false;
+
+create or replace function public.get_my_rating_public_setting(p_qr_token uuid)
+returns table(is_public boolean)
+language sql security definer set search_path=public as $$
+ select p.is_public
+ from public.members m
+ join public.poker_rating_profiles p on p.member_id=m.id
+ where m.qr_token=p_qr_token and p.enabled=true
+ limit 1
+$$;
+revoke all on function public.get_my_rating_public_setting(uuid) from public;
+grant execute on function public.get_my_rating_public_setting(uuid) to anon,authenticated;
+
+create or replace function public.set_my_rating_public_setting(p_qr_token uuid,p_is_public boolean)
+returns void language plpgsql security definer set search_path=public as $$
+begin
+ update public.poker_rating_profiles p
+ set is_public=coalesce(p_is_public,false),updated_at=now()
+ from public.members m
+ where p.member_id=m.id and m.qr_token=p_qr_token and p.enabled=true;
+ if not found then raise exception 'Rating profile not found'; end if;
+end $$;
+revoke all on function public.set_my_rating_public_setting(uuid,boolean) from public;
+grant execute on function public.set_my_rating_public_setting(uuid,boolean) to anon,authenticated;
+
+create or replace function public.get_public_poker_rating_leaderboard()
+returns table(member_id uuid,display_name text,current_rating integer,games_played integer,current_rank text)
+language sql security definer set search_path=public as $$
+ select p.member_id,
+        coalesce(nullif(m.nickname,''),nullif(m.display_name,''),'PLAYER')::text as display_name,
+        p.current_rating,p.games_played,p.current_rank
+ from public.poker_rating_profiles p
+ join public.members m on m.id=p.member_id
+ where p.enabled=true and p.is_public=true
+ order by p.current_rating desc,p.games_played desc,display_name asc
+$$;
+revoke all on function public.get_public_poker_rating_leaderboard() from public;
+grant execute on function public.get_public_poker_rating_leaderboard() to anon,authenticated;
