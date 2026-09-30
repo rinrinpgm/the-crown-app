@@ -176,6 +176,20 @@ revoke all on function public.staff_get_ring_rating_results(uuid) from public;
 grant execute on function public.staff_get_ring_rating_results(uuid) to authenticated;
 
 
+-- Staff-safe read RPC for Ring Rating history by date
+create or replace function public.staff_get_ring_rating_results_by_date(p_play_date date)
+returns table(id uuid,member_id uuid,play_date date,net_change integer,created_at timestamptz)
+language sql security definer set search_path=public as $
+ select r.id,r.member_id,r.play_date,r.net_change,r.created_at
+ from public.ring_rating_results r
+ where r.play_date=p_play_date
+   and exists(select 1 from public.staff s where s.auth_user_id=auth.uid() and s.active=true)
+ order by r.created_at asc
+$;
+revoke all on function public.staff_get_ring_rating_results_by_date(date) from public;
+grant execute on function public.staff_get_ring_rating_results_by_date(date) to authenticated;
+
+
 -- MY CROWN: QR owner can read only their own Ring Rating history
 create or replace function public.get_member_ring_rating_by_qr(p_qr_token uuid)
 returns table(play_date date,net_change integer,created_at timestamptz)
