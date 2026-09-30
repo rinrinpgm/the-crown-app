@@ -24,7 +24,7 @@
 <div class="card"><button type="button" class="ratingPlayerToggle" onclick="toggleRatingRanking()"><span><b>全会員 Ratingランキング</b><small>タップするとRating参加者の順位を表示します。</small></span><strong id="ratingRankingArrow">▼</strong></button><div id="ratingRankingList" class="hidden"></div></div>
 </div>
 <div id="ringRatingArea" class="hidden">
- <div class="card"><h3>リング純増を登録</h3><div class="formgrid"><div class="field"><label>プレイヤー</label><select id="ringRatingMember"><option value="">選択してください</option></select></div><div class="field"><label>日付</label><input id="ringRatingDate" type="date"></div><div class="field"><label>その日の純増</label><input id="ringRatingNet" type="number" step="100" placeholder="例：3000 / -2000"><div class="muted" style="margin-top:5px">勝ちなら＋、負けなら－で入力</div></div></div><button class="btn" style="margin-top:14px" onclick="saveRingRatingResult()">純増を登録</button><div id="ringRatingMsg"></div></div>
+ <div class="card"><h3>リング純増を登録</h3><div class="formgrid"><div class="field"><label>プレイヤー</label><select id="ringRatingMember"><option value="">選択してください</option></select></div><div class="field"><label>日付</label><input id="ringRatingDate" type="date"></div><div class="field"><label>ゲーム種別</label><select id="ringRatingGameType"><option value="NLH">NLH</option><option value="MIX">MIX</option></select></div><div class="field"><label>その日の純増</label><input id="ringRatingNet" type="number" step="100" placeholder="例：3000 / -2000"><div class="muted" style="margin-top:5px">勝ちなら＋、負けなら－で入力</div></div></div><button class="btn" style="margin-top:14px" onclick="saveRingRatingResult()">純増を登録</button><div id="ringRatingMsg"></div></div>
  <div class="card"><button type="button" class="ratingPlayerToggle" onclick="toggleRingRatingHistory()"><span><b>入力履歴</b><small>タップすると登録したリング純増履歴を表示します。</small></span><strong id="ringRatingHistoryArrow">▼</strong></button><div id="ringRatingHistoryArea" class="hidden"><div class="row" style="margin-top:14px"><span class="muted">履歴を見たいプレイヤーを選択してください。</span><button class="btn2" onclick="loadRingRatingResults()">更新</button></div><div class="formgrid" style="margin-top:14px"><div class="field"><label>プレイヤー</label><select id="ringRatingHistoryMember" onchange="loadRingRatingResults(this.value)"><option value="">選択してください</option></select></div><div class="field"><label>日付</label><input id="ringRatingHistoryDate" type="date" onchange="loadRingRatingResults()"></div></div><div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap"><button class="btn" onclick="loadRingRatingResults()">検索</button><button class="btn2" onclick="document.getElementById('ringRatingHistoryDate').value='';loadRingRatingResults()">日付をクリア</button></div><div id="ringRatingResults" class="muted" style="margin-top:10px">プレイヤーまたは日付を指定してください。</div></div></div>
 </div>
 </div>
@@ -109,9 +109,9 @@ async function loadRingRatingAdmin(){
  sel.onchange=loadRingRatingResults;
 }
 async function saveRingRatingResult(){
- const member_id=document.getElementById('ringRatingMember').value,play_date=document.getElementById('ringRatingDate').value,raw=document.getElementById('ringRatingNet').value,net_change=Number(raw),msg=document.getElementById('ringRatingMsg');
+ const member_id=document.getElementById('ringRatingMember').value,play_date=document.getElementById('ringRatingDate').value,game_type=document.getElementById('ringRatingGameType').value,raw=document.getElementById('ringRatingNet').value,net_change=Number(raw),msg=document.getElementById('ringRatingMsg');
  if(!member_id||!play_date||raw===''||!Number.isFinite(net_change))return msg.innerHTML='<span class="err">プレイヤー・日付・純増を入力してください。</span>';
- const r=await sb.rpc('staff_add_ring_rating_result',{p_member_id:member_id,p_play_date:play_date,p_net_change:net_change});
+ const r=await sb.rpc('staff_add_ring_rating_result',{p_member_id:member_id,p_play_date:play_date,p_net_change:net_change,p_game_type:game_type});
  if(r.error)return msg.innerHTML='<span class="err">'+esc(r.error.message)+'</span>';
  document.getElementById('ringRatingNet').value='';msg.innerHTML='<span class="ok">登録しました。</span>';await loadRingRatingResults();
 }
