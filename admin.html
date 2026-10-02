@@ -105,7 +105,7 @@ async function loadRingRatingAdmin(){
  const r=await sb.from('members').select('id,member_number,nickname,display_name').eq('status','active').order('member_number');
  if(r.error){sel.innerHTML='<option value="">会員を読み込めませんでした</option>';document.getElementById('ringRatingMsg').innerHTML='<span class="err">'+esc(r.error.message)+'</span>';return}
  const opts='<option value="">選択してください</option>'+(r.data||[]).map(m=>'<option value="'+m.id+'">'+esc(m.display_name||m.nickname||'会員')+' #'+esc(String(m.member_number||'').padStart(4,'0'))+'</option>').join('');const cur=sel.value;sel.innerHTML=opts;if(cur)sel.value=cur;const hs=document.getElementById('ringRatingHistoryMember');if(hs){const hc=hs.value;hs.innerHTML=opts;if(hc)hs.value=hc;}
- if(!document.getElementById('ringRatingDate').value)document.getElementById('ringRatingDate').value=ymd(new Date());
+ if(!document.getElementById('ringRatingDate').value)document.getElementById('ringRatingDate').value=ymd(new Date());const hd=document.getElementById('ringRatingHistoryDate');if(hd&&!hd.value)hd.value=ymd(new Date());
  sel.onchange=loadRingRatingResults;
 }
 async function saveRingRatingResult(){
