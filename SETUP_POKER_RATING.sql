@@ -266,3 +266,56 @@ language sql security definer set search_path=public as $$
 $$;
 revoke all on function public.get_public_poker_rating_leaderboard() from public;
 grant execute on function public.get_public_poker_rating_leaderboard() to anon,authenticated;
+
+
+-- Public Ring Rating opt-in leaderboard
+create table if not exists public.ring_rating_public_settings (
+ member_id uuid primary key references public.members(id) on delete cascade,
+ is_public boolean not null default false,
+ updated_at timestamptz not null default now()
+);
+alter table public.ring_rating_public_settings enable row level security;
+
+create or replace function public.get_my_ring_rating_public_setting(p_qr_token uuid)
+returns table(is_public boolean)
+language sql security definer set search_path=public as $$
+ select coalesce(s.is_public,false)
+ from public.members m
+ left join public.ring_rating_public_settings s on s.member_id=m.id
+ where m.qr_token=p_qr_token
+ limit 1
+$$;
+revoke all on function public.get_my_ring_rating_public_setting(uuid) from public;
+grant execute on function public.get_my_ring_rating_public_setting(uuid) to anon,authenticated;
+
+create or replace function public.set_my_ring_rating_public_setting(p_qr_token uuid,p_is_public boolean)
+returns void language plpgsql security definer set search_path=public as $$
+declare v_member uuid;
+begin
+ select id into v_member from public.members where qr_token=p_qr_token limit 1;
+ if v_member is null then raise exception 'member not found'; end if;
+ insert into public.ring_rating_public_settings(member_id,is_public,updated_at)
+ values(v_member,coalesce(p_is_public,false),now())
+ on conflict(member_id) do update set is_public=excluded.is_public,updated_at=now();
+end $$;
+revoke all on function public.set_my_ring_rating_public_setting(uuid,boolean) from public;
+grant execute on function public.set_my_ring_rating_public_setting(uuid,boolean) to anon,authenticated;
+
+create or replace function public.get_public_ring_rating_leaderboard()
+returns table(member_id uuid,display_name text,current_rating integer,games_played integer)
+language sql security definer set search_path=public as $$
+ with stats as (
+   select r.member_id,
+          1500 + sum(case
+            when r.net_change >= 100000 then 40 when r.net_change >= 50000 then 30 when r.net_change >= 30000 then 20 when r.net_change >= 10000 then 10 when r.net_change > 0 then 5
+            when r.net_change <= -100000 then -40 when r.net_change <= -50000 then -30 when r.net_change <= -30000 then -20 when r.net_change <= -10000 then -10 when r.net_change < 0 then -5 else 0 end)::integer as current_rating,
+          count(*)::integer as games_played
+   from public.ring_rating_results r group by r.member_id
+ )
+ select st.member_id,coalesce(nullif(m.nickname,''),nullif(m.display_name,''),'PLAYER')::text,st.current_rating,st.games_played
+ from stats st join public.members m on m.id=st.member_id join public.ring_rating_public_settings ps on ps.member_id=st.member_id
+ where ps.is_public=true
+ order by st.current_rating desc,st.games_played desc,2 asc
+$$;
+revoke all on function public.get_public_ring_rating_leaderboard() from public;
+grant execute on function public.get_public_ring_rating_leaderboard() to anon,authenticated;
