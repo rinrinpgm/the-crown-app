@@ -231,25 +231,27 @@ alter table public.poker_rating_profiles add column if not exists is_public bool
 
 create or replace function public.get_my_rating_public_setting(p_qr_token uuid)
 returns table(is_public boolean)
-language sql security definer set search_path=public as $$
- select p.is_public
+language sql security definer set search_path=public as $
+ select coalesce(p.is_public,false)
  from public.members m
- join public.poker_rating_profiles p on p.member_id=m.id
- where m.qr_token=p_qr_token and p.enabled=true
+ left join public.poker_rating_profiles p on p.member_id=m.id
+ where m.qr_token=p_qr_token
  limit 1
-$$;
+$;
 revoke all on function public.get_my_rating_public_setting(uuid) from public;
 grant execute on function public.get_my_rating_public_setting(uuid) to anon,authenticated;
 
 create or replace function public.set_my_rating_public_setting(p_qr_token uuid,p_is_public boolean)
-returns void language plpgsql security definer set search_path=public as $$
+returns void language plpgsql security definer set search_path=public as $
+declare v_member uuid;
 begin
- update public.poker_rating_profiles p
- set is_public=coalesce(p_is_public,false),updated_at=now()
- from public.members m
- where p.member_id=m.id and m.qr_token=p_qr_token and p.enabled=true;
- if not found then raise exception 'Rating profile not found'; end if;
-end $$;
+ select id into v_member from public.members where qr_token=p_qr_token limit 1;
+ if v_member is null then raise exception 'member not found'; end if;
+ insert into public.poker_rating_profiles(member_id,enabled,is_public,updated_at)
+ values(v_member,true,coalesce(p_is_public,false),now())
+ on conflict(member_id) do update
+ set enabled=true,is_public=excluded.is_public,updated_at=now();
+end $;
 revoke all on function public.set_my_rating_public_setting(uuid,boolean) from public;
 grant execute on function public.set_my_rating_public_setting(uuid,boolean) to anon,authenticated;
 
