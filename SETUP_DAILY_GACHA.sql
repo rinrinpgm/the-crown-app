@@ -87,7 +87,7 @@ begin
    where p.cutoff>v_pick order by p.cutoff limit 1;
    insert into public.daily_gacha_draws(member_id,business_date,prize_id,prize_name,expires_at)
    values(v_member,v_date,v_prize.id,v_prize.name,v_exp)
-   on conflict(member_id,business_date) do nothing;
+   on conflict on constraint daily_gacha_draws_member_id_business_date_key do nothing;
  end if;
  return query select d.prize_name,d.business_date,d.expires_at,d.used_at,d.drawn_at
  from public.daily_gacha_draws d where d.member_id=v_member and d.business_date=v_date limit 1;
