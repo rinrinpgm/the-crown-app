@@ -31,7 +31,13 @@
 <div id="myMember" class="hidden myCrown">
 <div class="memberHero"><div class="memberGlow"></div><div class="gold memberEyebrow">THE CROWN MEMBER</div><h2 id="myName">MEMBER</h2><div id="myMemberNo" class="memberNo"></div><div class="memberQrFrame"><div id="myQr" class="memberQr"></div></div><div class="qrHint">このQRはあなた専用の会員証です</div><div id="deviceSaveArea" style="margin-top:14px"></div></div>
 <div class="coinCard"><div><small>CROWN COIN</small><div class="coinCaption">現在の保有残高</div><button class="miniBtn" style="margin-top:10px" onclick="toggleMyCoinHistory()">詳細・履歴を見る</button></div><div id="myCoin" class="coinBalance">0 cc</div></div><div id="myCoinHistory" class="historyCard hidden" style="margin-top:8px"><div class="row"><div><b>Crown coin 履歴</b><div class="muted">最新の増減履歴</div></div><button class="miniBtn" onclick="loadMyCoinHistory()">更新</button></div><div id="myCoinHistoryList" class="sectionSep"><div class="muted">読み込み中...</div></div></div>
-<div id="myBillArea" class="myBlock"></div><div class="mySectionHead"><div><small>BENEFITS</small><h2>COUPON</h2></div></div><div id="myCoupons" class="couponGrid"><div class="card muted">クーポンはありません。</div></div>
+<div class="card" id="dailyGachaCard" style="border:1px solid #9b7834;background:linear-gradient(135deg,#251b0d,#111)">
+<div class="gold" style="font-size:12px;letter-spacing:.15em">THE CROWN DAILY GACHA</div>
+<h2 style="margin:9px 0">🎰 本日のガチャ</h2>
+<p class="muted">毎日1回チャレンジ！ 5:00〜翌4:59が1営業日です。景品は当日限り有効。</p>
+<div id="dailyGachaResult" style="font-size:17px;font-weight:700;margin:14px 0">読み込み中…</div>
+<button class="btn2" id="dailyGachaBtn" onclick="drawDailyGacha()" disabled>ガチャを回す</button>
+<div id="dailyGachaExpiry" class="muted" style="margin-top:10px"></div></div><div id="myBillArea" class="myBlock"></div><div class="mySectionHead"><div><small>BENEFITS</small><h2>COUPON</h2></div></div><div id="myCoupons" class="couponGrid"><div class="card muted">クーポンはありません。</div></div>
 <div class="mySectionHead"><div><small>HISTORY</small><h2>会計履歴</h2></div></div><div class="historyCard"><div class="row"><div><b>過去のお会計</b><div class="muted">会計済みの伝票を確認できます</div></div><button class="miniBtn" onclick="loadMyCheckoutHistory()">更新</button></div><div class="field compactField"><label>表示する月</label><input id="myHistoryMonth" type="month" onchange="loadMyCheckoutHistory()"></div><div id="myCheckoutHistory" class="sectionSep"><div class="muted">読み込み中...</div></div></div>
 </div></section>
 </main><div id="tourModal" class="modal" onclick="if(event.target===this)closeTournament()"><div class="modalBox"><div class="modalHead"><div><div class="gold" style="font-size:12px;letter-spacing:.12em">TOURNAMENT</div><h2 id="tdName" style="margin:5px 0 0"></h2></div><button class="modalClose" onclick="closeTournament()">×</button></div><div id="tdBody"></div></div></div><nav class="nav"><button class="active" data-p="home" onclick="show('home')"><span class="ico">⌂</span>HOME</button><button data-p="tournament" onclick="show('tournament')"><span class="ico">♠</span>トーナメント</button><button data-p="ring" onclick="show('ring')"><span class="ico">♣</span>RING</button><button data-p="ranking" onclick="show('ranking')"><span class="ico">♛</span>ランキング</button><button data-p="my" onclick="show('my')"><span class="ico">♦</span>MY CROWN</button></nav></div>
@@ -101,7 +107,7 @@ async function loadMyCrown(){
  crownCurrentMember=m;const mid=m.id;
  document.getElementById('myName').textContent=pick(m,['display_name','name','nickname'])||'MEMBER';
  const raw=pick(m,['member_number','member_no']);document.getElementById('myMemberNo').textContent='MEMBER ID  '+(raw!==null&&raw!==undefined&&raw!==''?String(raw).padStart(4,'0'):'');
- renderMemberQr(token);renderDeviceSaveArea(token,!!savedToken);
+ renderMemberQr(token);renderDeviceSaveArea(token,!!savedToken);loadDailyGacha();
  await loadCrownBillReadOnly(m);loadMyCheckoutHistory();loadRatingPublicSetting();loadRingRatingPublicSetting();
  const {data:coinRows,error:coinError}=await sb.rpc('get_member_coin_by_qr',{p_qr_token:token});const coinRow=Array.isArray(coinRows)?coinRows[0]:coinRows;
  document.getElementById('myCoin').textContent=coinError?'— cc':Number(pick(coinRow,['balance','amount','coin_balance'])||0).toLocaleString()+' cc';
@@ -265,4 +271,33 @@ function syncTourMonth(){updateTourMonthLabel();loadTournaments()}
 function moveTourMonth(delta){const el=document.getElementById('tourMonth');let v=el.value;if(!v){const d=new Date();v=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}let [y,m]=v.split('-').map(Number);m+=delta;if(m<1){m=12;y--}if(m>12){m=1;y++}el.value=y+'-'+String(m).padStart(2,'0');syncTourMonth()}
 async function loadTournaments(){const h=document.getElementById('tourList');if(!sb&&!init()){h.innerHTML='<div class="card muted">接続設定が必要です。</div>';return}const m=document.getElementById('tourMonth');if(!m.value){const d=new Date();m.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}const [y,mo]=m.value.split('-').map(Number),last=new Date(y,mo,0).getDate(),from=m.value+'-01',to=m.value+'-'+String(last).padStart(2,'0');const {data,error}=await sb.from('tournaments').select('*').gte('event_date',from).lte('event_date',to).eq('published',true).order('event_date').order('start_time');if(error){h.innerHTML='<div class="card muted">'+esc(error.message)+'</div>';return}window._crownTours=data||[];h.innerHTML=(data||[]).length?(data||[]).map((x,i)=>`<div class="card tourCard" onclick="openTournament(${i})"><b>${esc(x.event_date)}　${esc((x.start_time||'').slice(0,5))}</b><h3>${esc(x.name)}</h3><p class="muted">ENTRY ¥${Number(x.entry_fee||0).toLocaleString()}${x.starting_stack?' / '+Number(x.starting_stack).toLocaleString()+' STACK':''}</p><div class="tourHint">詳細を見る ›</div></div>`).join(''):'<div class="card muted">この月の公開トーナメントはありません。</div>'}
 function yen(v){return v===null||v===undefined||v===''?'—':'¥'+Number(v).toLocaleString()}function num(v){return v===null||v===undefined||v===''?'—':Number(v).toLocaleString()}function openTournament(i){const x=(window._crownTours||[])[i];if(!x)return;document.getElementById('tdName').textContent=x.name||'';let image=x.image_url?`<img class="tourImage" src="${esc(x.image_url)}" alt="">`:'';let prize=x.prize?`<div class="detailItem" style="grid-column:1/-1"><small>PRIZE</small><div class="detailText">${esc(x.prize)}</div></div>`:'';let desc=x.description?`<div class="detailItem" style="grid-column:1/-1"><small>詳細・備考</small><div class="detailText">${esc(x.description)}</div></div>`:'';const start=(x.start_time||'').slice(0,5)||'—',late=(x.late_reg_time||'').slice(0,5)||'—';const sameStack=String(x.starting_stack??'')===String(x.reentry_stack??'')||!x.reentry_stack;const stackValue=sameStack?num(x.starting_stack):num(x.starting_stack)+' / '+num(x.reentry_stack);document.getElementById('tdBody').innerHTML=image+`<div class="detailGrid"><div class="detailItem"><small>開催日</small><b>${esc(x.event_date)}</b></div><div class="detailItem"><small>START / LATE</small><b>${esc(start)} / ${esc(late)}</b></div><div class="detailItem"><small>ENTRY / RE-ENTRY</small><b>${yen(x.entry_fee)} / ${yen(x.reentry_fee)}</b></div><div class="detailItem"><small>STACK</small><b>${stackValue}</b></div>${prize}${desc}</div>`;document.getElementById('tourModal').classList.add('open');document.body.style.overflow='hidden'}function closeTournament(){document.getElementById('tourModal').classList.remove('open');document.body.style.overflow=''}document.addEventListener('keydown',e=>{if(e.key==='Escape')closeTournament()});window.addEventListener('DOMContentLoaded',()=>{if(init()){loadHome();const p=new URLSearchParams(location.search);if(p.get('member')||location.hash==='#my')show('my')}});setInterval(()=>{if(document.getElementById('ring').classList.contains('active'))loadRing()},5000);
+
+// Daily gacha: draw and eligibility are enforced atomically by Supabase.
+let dailyGachaBusy=false;
+function gachaToken(){return new URLSearchParams(location.search).get('member')||localStorage.getItem('crown_member_token')||''}
+function gachaDeadline(){const d=new Date();const tokyo=new Date(d.toLocaleString('en-US',{timeZone:'Asia/Tokyo'}));if(tokyo.getHours()<5)tokyo.setDate(tokyo.getDate()-1);tokyo.setDate(tokyo.getDate()+1);tokyo.setHours(5,0,0,0);return tokyo}
+async function loadDailyGacha(){
+ const result=document.getElementById('dailyGachaResult'),btn=document.getElementById('dailyGachaBtn'),expiry=document.getElementById('dailyGachaExpiry');
+ if(!result||!btn||!sb)return;
+ btn.disabled=true;result.textContent='確認中…';
+ const {data,error}=await sb.rpc('daily_gacha',{p_qr_token:gachaToken(),p_draw:false});
+ if(error){result.textContent='ガチャの準備がまだ完了していません。';expiry.textContent='店舗にお問い合わせください。';return}
+ const row=data?.[0];
+ if(row){
+   result.textContent='🎁 '+row.prize_name;
+   expiry.textContent=(row.used_at?'使用済み ／ ':'本日当選済み ／ ')+'有効期限：'+new Date(row.expires_at).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+ }else{result.textContent='本日のガチャはまだ引いていません！';expiry.textContent='当選景品は翌朝4:59まで有効';btn.disabled=false}
+}
+async function drawDailyGacha(){
+ if(dailyGachaBusy||!sb||!gachaToken())return;
+ dailyGachaBusy=true;const btn=document.getElementById('dailyGachaBtn'),result=document.getElementById('dailyGachaResult');
+ btn.disabled=true;result.textContent='🎰 抽選中…';
+ try{
+  const {data,error}=await sb.rpc('daily_gacha',{p_qr_token:gachaToken(),p_draw:true});
+  if(error)throw error;
+  result.textContent='🎉 '+(data?.[0]?.prize_name||'抽選結果を確認してください');
+  await loadDailyGacha();
+ }catch(e){result.textContent='抽選に失敗しました。もう一度確認してください。';await loadDailyGacha()}
+ finally{dailyGachaBusy=false}
+}
 </script><script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script></body></html>
