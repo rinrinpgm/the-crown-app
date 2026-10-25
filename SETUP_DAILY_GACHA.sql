@@ -8,11 +8,42 @@ create table if not exists public.daily_gacha_prizes (
 );
 insert into public.daily_gacha_prizes(name,weight)
 select v.name,v.weight from (values
- ('ドリンク1杯無料',40),('リエントリー500円OFF',30),
- ('リエントリー1,000円OFF',20),('リエントリー半額',9),
- ('トーナメント無料券',1)
+ ('エントリー5,000円引き',5),('エントリー2,000円引き',20),
+ ('飲み放題券',15),('ドリンクチケット',30),
+ ('CCリング3,000coinプレゼント（リング1時間プレイ）',5),
+ ('リエントリー無料券',5),
+ ('CCリング1,000coinプレゼント（リング1時間プレイ）',15),
+ ('好きなスタッフとテキーラ乾杯券',5)
 ) v(name,weight)
 where not exists(select 1 from public.daily_gacha_prizes);
+-- Synchronize the prize catalog even if the earlier setup SQL was already executed.
+-- Preserve historic prize rows for existing draw references; disable old entries.
+update public.daily_gacha_prizes set active=false;
+insert into public.daily_gacha_prizes(name,weight,active)
+values
+ ('エントリー5,000円引き',5,true),('エントリー2,000円引き',20,true),
+ ('飲み放題券',15,true),('ドリンクチケット',30,true),
+ ('CCリング3,000coinプレゼント（リング1時間プレイ）',5,true),
+ ('リエントリー無料券',5,true),
+ ('CCリング1,000coinプレゼント（リング1時間プレイ）',15,true),
+ ('好きなスタッフとテキーラ乾杯券',5,true)
+on conflict do nothing;
+-- Avoid duplicate active rows when the setup is rerun.
+with ranked as (
+ select id,row_number() over(partition by name order by id desc) rn
+ from public.daily_gacha_prizes where name in
+ ('エントリー5,000円引き','エントリー2,000円引き','飲み放題券','ドリンクチケット',
+ 'CCリング3,000coinプレゼント（リング1時間プレイ）','リエントリー無料券',
+ 'CCリング1,000coinプレゼント（リング1時間プレイ）','好きなスタッフとテキーラ乾杯券')
+)
+update public.daily_gacha_prizes p set active=(r.rn=1),weight=case p.name
+ when 'エントリー5,000円引き' then 5 when 'エントリー2,000円引き' then 20
+ when '飲み放題券' then 15 when 'ドリンクチケット' then 30
+ when 'CCリング3,000coinプレゼント（リング1時間プレイ）' then 5
+ when 'リエントリー無料券' then 5
+ when 'CCリング1,000coinプレゼント（リング1時間プレイ）' then 15
+ when '好きなスタッフとテキーラ乾杯券' then 5 else 0 end
+from ranked r where p.id=r.id;
 create table if not exists public.daily_gacha_draws (
  id uuid primary key default gen_random_uuid(),
  member_id uuid not null references public.members(id) on delete cascade,
