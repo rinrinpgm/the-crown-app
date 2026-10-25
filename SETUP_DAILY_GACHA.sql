@@ -1,0 +1,68 @@
+-- THE CROWN DAILY GACHA: run once in Supabase SQL Editor.
+-- Business day: Asia/Tokyo 05:00 -> next day 04:59:59.
+create table if not exists public.daily_gacha_prizes (
+ id bigint generated always as identity primary key,
+ name text not null,
+ weight integer not null check(weight>=0),
+ active boolean not null default true
+);
+insert into public.daily_gacha_prizes(name,weight)
+select v.name,v.weight from (values
+ ('ドリンク1杯無料',40),('リエントリー500円OFF',30),
+ ('リエントリー1,000円OFF',20),('リエントリー半額',9),
+ ('トーナメント無料券',1)
+) v(name,weight)
+where not exists(select 1 from public.daily_gacha_prizes);
+create table if not exists public.daily_gacha_draws (
+ id uuid primary key default gen_random_uuid(),
+ member_id uuid not null references public.members(id) on delete cascade,
+ business_date date not null,
+ prize_id bigint not null references public.daily_gacha_prizes(id),
+ prize_name text not null,
+ drawn_at timestamptz not null default now(),
+ expires_at timestamptz not null,
+ used_at timestamptz,
+ unique(member_id,business_date)
+);
+create index if not exists daily_gacha_draws_member_idx on public.daily_gacha_draws(member_id,business_date desc);
+alter table public.daily_gacha_prizes enable row level security;
+alter table public.daily_gacha_draws enable row level security;
+revoke all on public.daily_gacha_prizes from anon,authenticated;
+revoke all on public.daily_gacha_draws from anon,authenticated;
+create or replace function public.daily_gacha(p_qr_token text, p_draw boolean default false)
+returns table(prize_name text, business_date date, expires_at timestamptz, used_at timestamptz, drawn_at timestamptz)
+language plpgsql security definer set search_path=public
+as $$
+declare
+ v_member uuid;
+ v_date date := ((now() at time zone 'Asia/Tokyo') - interval '5 hours')::date;
+ v_exp timestamptz := ((v_date + 1)::timestamp + interval '5 hours') at time zone 'Asia/Tokyo';
+ v_total integer;
+ v_pick integer;
+ v_prize record;
+begin
+ if p_qr_token is null or length(p_qr_token)<12 then raise exception 'Invalid member token'; end if;
+ select m.id into v_member from public.members m where m.qr_token=p_qr_token;
+ if v_member is null then raise exception 'Member not found'; end if;
+ -- Serialize concurrent requests for the same member, including multiple devices.
+ perform pg_advisory_xact_lock(hashtextextended(v_member::text, 918273));
+ if p_draw and not exists(select 1 from public.daily_gacha_draws d where d.member_id=v_member and d.business_date=v_date) then
+   select coalesce(sum(p.weight),0)::integer into v_total from public.daily_gacha_prizes p where p.active and p.weight>0;
+   if v_total<=0 then raise exception 'No available prizes'; end if;
+   v_pick := floor(random()*v_total)::integer;
+   select p.id,p.name into v_prize from
+     (select p.id,p.name,sum(p.weight) over(order by p.id) as cutoff
+      from public.daily_gacha_prizes p where p.active and p.weight>0) p
+   where p.cutoff>v_pick order by p.cutoff limit 1;
+   insert into public.daily_gacha_draws(member_id,business_date,prize_id,prize_name,expires_at)
+   values(v_member,v_date,v_prize.id,v_prize.name,v_exp)
+   on conflict(member_id,business_date) do nothing;
+ end if;
+ return query select d.prize_name,d.business_date,d.expires_at,d.used_at,d.drawn_at
+ from public.daily_gacha_draws d where d.member_id=v_member and d.business_date=v_date limit 1;
+end $$;
+revoke all on function public.daily_gacha(text,boolean) from public;
+grant execute on function public.daily_gacha(text,boolean) to anon,authenticated;
+-- Staff redemption (using SQL Editor until admin UI is added):
+-- update public.daily_gacha_draws set used_at=now()
+-- where id='DRAW_UUID' and used_at is null and expires_at>now();
