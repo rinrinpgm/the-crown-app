@@ -141,6 +141,9 @@ async function deleteRingRatingResult(id,date,net){
  if(!confirm(date+' / '+(Number(net)>=0?'+':'')+Number(net).toLocaleString()+' を削除しますか？'))return;
  const r=await sb.rpc('staff_delete_ring_rating_result',{p_id:id});if(r.error)return alert(r.error.message);await loadRingRatingResults();
 }
+const ringHistoryStyle=document.createElement('style');
+ringHistoryStyle.textContent='.ringHistoryGrid{display:grid!important;grid-template-columns:minmax(0,1fr) 130px 174px;align-items:center;gap:16px;padding:13px 8px!important;border-bottom:1px solid #383024}.ringHistoryName{min-width:0;overflow-wrap:anywhere}.ringHistoryAmount{text-align:right;font-variant-numeric:tabular-nums}.ringHistoryActions{display:flex;gap:10px;justify-content:flex-end;align-items:center}.ringHistoryActions button{min-width:74px;padding:9px 12px!important;box-sizing:border-box}.ringHistoryActions .danger{background:#3b1518!important;color:#ff9299!important;border:1px solid #8c3037!important;border-radius:12px!important}@media(max-width:560px){.ringHistoryGrid{grid-template-columns:minmax(0,1fr) 100px;gap:8px}.ringHistoryActions{grid-column:1/-1;justify-content:flex-end}.ringHistoryAmount{font-size:14px}}';
+document.head.appendChild(ringHistoryStyle);
 async function loadLatestRingRatingResults(){
  const h=document.getElementById('ringRatingResults');
  document.getElementById('ringRatingHistoryMember').value='';
@@ -165,7 +168,10 @@ async function loadLatestRingRatingResults(){
    const amount=document.createElement('b');amount.textContent=(Number(row.net_change)>=0?'+':'')+Number(row.net_change).toLocaleString();
    const edit=document.createElement('button');edit.className='btn2';edit.textContent='修正';edit.onclick=()=>editRingRatingResult(row.id,row.play_date,row.net_change);
    const del=document.createElement('button');del.className='danger';del.textContent='削除';del.onclick=()=>deleteRingRatingResult(row.id,row.play_date,row.net_change);
-   line.append(label,amount,edit,del);h.append(line);
+   line.classList.add('ringHistoryGrid');
+   label.className='ringHistoryName';amount.className='ringHistoryAmount';
+   const actions=document.createElement('div');actions.className='ringHistoryActions';actions.append(edit,del);
+   line.append(label,amount,actions);h.append(line);
   }
  }
 }
