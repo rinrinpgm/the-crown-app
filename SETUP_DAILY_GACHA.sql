@@ -259,3 +259,21 @@ language sql security definer set search_path=public as $$
 $$;
 revoke all on function public.gacha_public_prize_weights() from public;
 grant execute on function public.gacha_public_prize_weights() to anon,authenticated;
+
+-- Customer-device redemption, confirmed by staff in the customer-facing popup.
+-- Note: possession of member QR token authorizes this action; it is not a cryptographic staff approval.
+create or replace function public.gacha_customer_redeem(p_qr_token text)
+returns boolean language plpgsql security definer set search_path=public as $$
+declare v_member uuid;v_date date:=((now() at time zone 'Asia/Tokyo')-interval '5 hours')::date;
+begin
+ if p_qr_token is null or p_qr_token !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+ then raise exception 'Invalid member token';end if;
+ select m.id into v_member from public.members m where m.qr_token=p_qr_token::uuid;
+ if v_member is null then raise exception 'Member not found';end if;
+ update public.daily_gacha_draws d set used_at=now()
+ where d.member_id=v_member and d.business_date=v_date and d.used_at is null and d.expires_at>now();
+ if not found then raise exception 'Ticket already used, expired, or not found';end if;
+ return true;
+end $$;
+revoke all on function public.gacha_customer_redeem(text) from public;
+grant execute on function public.gacha_customer_redeem(text) to anon,authenticated;
