@@ -250,3 +250,12 @@ begin
 end $$;
 revoke all on function public.gacha_redeem(uuid) from public;
 grant execute on function public.gacha_redeem(uuid) to authenticated;
+
+-- Public non-sensitive active prize probabilities, for client-side animation only.
+create or replace function public.gacha_public_prize_weights()
+returns table(name text,weight integer)
+language sql security definer set search_path=public as $$
+ select p.name,p.weight from public.daily_gacha_prizes p where p.active and p.weight>0
+$$;
+revoke all on function public.gacha_public_prize_weights() from public;
+grant execute on function public.gacha_public_prize_weights() to anon,authenticated;
