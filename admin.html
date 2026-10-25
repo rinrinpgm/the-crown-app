@@ -256,7 +256,7 @@ async function loadSalesAnalytics(){
   const [members,tabs,sessions,results,tours]=await Promise.all([
    salesFetchAll('members','id,member_number,display_name,nickname'),
    salesFetchAll('customer_tabs','id,member_id,opened_at,closed_at,status'),
-   salesFetchAll('ring_sessions','id,member_id,created_at'),
+   salesFetchAll('ring_sessions','id,member_id,tab_id'),
    salesFetchAll('poker_rating_results','member_id,tournament_id'),
    salesFetchAll('tournaments','id,event_date')
   ]);
@@ -276,7 +276,8 @@ async function loadSalesAnalytics(){
    days[date].visitors.add(mid);
   };
   for(const t of tabs)visit(t.member_id,salesDay(t.opened_at));
-  for(const t of sessions)visit(t.member_id,salesDay(t.created_at));
+  const tabById=Object.fromEntries(tabs.map(t=>[String(t.id),t]));
+  for(const t of sessions){const linked=tabById[String(t.tab_id)];if(linked)visit(t.member_id||linked.member_id,salesDay(linked.opened_at));}
   const tourDates=Object.fromEntries(tours.map(t=>[t.id,t.event_date]));
   for(const t of results)visit(t.member_id,tourDates[t.tournament_id]);
   let gross=0;
