@@ -6,7 +6,11 @@
 <section id="setup" class="card hidden"><h2>接続設定</h2><div id="setupMsg"></div></section>
 <section id="login" class="card"><h2>管理画面ログイン</h2><label>メールアドレス<input id="email" type="email" autocomplete="username"></label><label>パスワード<div class="passwordWrap"><input id="pw" type="password" autocomplete="current-password"><button id="pwToggle" class="passwordToggle" type="button" aria-label="パスワードを表示" aria-pressed="false" title="パスワードを表示">👁</button></div></label><button id="loginBtn" type="button" class="btn" style="margin-top:12px">ログイン</button><div id="loginMsg"></div></section>
 <section id="passwordReset" class="card hidden"><h2>新しいパスワードを設定</h2><p class="muted">新しいパスワードを2回入力してください。</p><label>新しいパスワード<div class="passwordWrap"><input id="newPw" type="password" autocomplete="new-password"><button id="newPwToggle" class="passwordToggle" type="button" aria-label="パスワードを表示" title="パスワードを表示">👁</button></div></label><label>新しいパスワード（確認）<div class="passwordWrap"><input id="newPwConfirm" type="password" autocomplete="new-password"><button id="newPwConfirmToggle" class="passwordToggle" type="button" aria-label="パスワードを表示" title="パスワードを表示">👁</button></div></label><button id="saveNewPwBtn" type="button" class="btn" style="margin-top:12px">パスワードを変更</button><div id="passwordResetMsg"></div></section>
-<section id="admin" class="hidden"><div class="row"><h2>店舗管理</h2><button class="btn2" onclick="logout()">ログアウト</button></div><div class="tabs"><button class="btn2" onclick="showTab('ring')">RING</button><button class="btn2" onclick="showTab('tour')">トーナメント</button><button class="btn2" onclick="showTab('rating')">Rating管理</button><button class="btn2" onclick="showTab('home')">HOME管理</button><button class="btn2" onclick="showTab('member')">会員管理</button><button class="btn2" onclick="showTab('openBills')">未会計伝票</button><button class="btn2" onclick="showTab('history')">会計履歴</button><button class="btn2" onclick="showTab('tickets')">割引・チケット管理</button></div>
+<section id="admin" class="hidden"><div class="row"><h2>店舗管理</h2><button class="btn2" onclick="logout()">ログアウト</button></div><div class="tabs"><button class="btn2" onclick="showTab('ring')">RING</button><button class="btn2" onclick="showTab('tour')">トーナメント</button><button class="btn2" onclick="showTab('rating')">Rating管理</button><button class="btn2" onclick="showTab('home')">HOME管理</button><button class="btn2" onclick="showTab('member')">会員管理</button><button class="btn2" onclick="showTab('openBills')">未会計伝票</button><button class="btn2" onclick="showTab('history')">会計履歴</button><button class="btn2" onclick="showTab('tickets')">割引・チケット管理</button><button class="btn2" onclick="showTab('gacha')">🎰 ガチャ管理</button></div>
+<div id="gachaTab" class="hidden">
+<div class="card"><h3>🎰 デイリーガチャ 景品設定</h3><p class="muted">景品名・当選確率・有効/無効を編集できます。確率は有効な景品の合計が100%になるよう設定してください。無効化した景品の当選履歴は残ります。</p>
+<div id="gachaPrizeRows"></div><div class="row"><button class="btn2" onclick="addGachaPrize()">＋ 景品を追加</button><b id="gachaTotal">合計 0%</b><button class="btn" onclick="saveGachaPrizes()">変更を保存</button></div><div id="gachaMsg" class="muted" style="margin-top:10px"></div></div>
+<div class="card"><div class="row"><h3>当選履歴・使用済み処理</h3><button class="btn2" onclick="loadGachaDraws()">更新</button></div><div id="gachaDrawRows" class="muted">読み込み中…</div></div></div>
 <div id="ringTab"><div class="card"><div class="row"><div><h3>クイックOPEN</h3><p class="muted">ワンタップで卓を作成</p></div><button class="btn2" onclick="loadRing()">更新</button></div><div class="row"><button class="btn quickBtn" onclick="quick('NLH','50/100',10,5)">50/100 NLH</button><button class="btn quickBtn" onclick="quick('NLH','100/200',10,3)">100/200 NLH</button><button class="btn quickBtn" onclick="quick('MIX','',10,3)">MIX</button></div><div id="msg"></div></div><div id="rings"></div></div>
 <div id="ratingTab" class="hidden">
 <div class="card">
@@ -48,7 +52,7 @@ async function login(){const email=document.getElementById('email').value.trim()
 let passwordRecoveryMode=false;function showPasswordReset(){passwordRecoveryMode=true;vis('login',false);vis('admin',false);vis('passwordReset',true)}async function saveNewPassword(){const p=document.getElementById('newPw').value,c=document.getElementById('newPwConfirm').value,m=document.getElementById('passwordResetMsg');m.innerHTML='';if(p.length<6){m.innerHTML='<p class="err">パスワードは6文字以上で入力してください。</p>';return}if(p!==c){m.innerHTML='<p class="err">確認用パスワードが一致しません。</p>';return}const b=document.getElementById('saveNewPwBtn');b.disabled=true;try{const {error}=await sb.auth.updateUser({password:p});if(error)throw error;m.innerHTML='<p class="ok">パスワードを変更しました。新しいパスワードでログインしてください。</p>';setTimeout(async()=>{await sb.auth.signOut();history.replaceState({},document.title,location.pathname);passwordRecoveryMode=false;vis('passwordReset',false);vis('login',true);document.getElementById('pw').value='';},1200)}catch(e){m.innerHTML='<p class="err">'+esc(e.message)+'</p>'}finally{b.disabled=false}}
 async function boot(){vis('setup',false);vis('admin',false);vis('passwordReset',false);vis('login',true);try{init();sb.auth.onAuthStateChange((event)=>{if(event==='PASSWORD_RECOVERY')showPasswordReset()});const params=new URLSearchParams(location.search),hash=new URLSearchParams(location.hash.replace(/^#/,''));if(params.get('type')==='recovery'||hash.get('type')==='recovery')showPasswordReset();const {data,error}=await sb.auth.getSession();if(error)throw error;if(passwordRecoveryMode)return;if(data.session){const q=await sb.from('staff').select('id,display_name,role,active').eq('auth_user_id',data.session.user.id).eq('active',true).maybeSingle();if(q.data){staff=q.data;vis('login',false);vis('admin',true);loadRing();return}}}catch(e){console.error('boot error',e);const m=document.getElementById(passwordRecoveryMode?'passwordResetMsg':'loginMsg');if(m)m.innerHTML='<p class="err">接続エラー：'+esc(e.message)+'</p>'}}
 async function logout(){await sb.auth.signOut();vis('admin',false);vis('login',true)}
-function showTab(x){vis('ringTab',x==='ring');vis('tourTab',x==='tour');vis('ratingTab',x==='rating');vis('homeTab',x==='home');vis('memberTab',x==='member');vis('openBillsTab',x==='openBills');vis('historyTab',x==='history');vis('ticketsTab',x==='tickets');if(x==='tour')loadTours();if(x==='rating')loadRatingAdmin();if(x==='home')loadHomeAdmin();if(x==='member')loadMembers();if(x==='openBills')loadOpenBills();if(x==='history')loadCheckoutHistory();if(x==='tickets'){loadTicketTypes();loadTicketGrantHistory()}}
+function showTab(x){vis('ringTab',x==='ring');vis('tourTab',x==='tour');vis('ratingTab',x==='rating');vis('homeTab',x==='home');vis('memberTab',x==='member');vis('openBillsTab',x==='openBills');vis('historyTab',x==='history');vis('ticketsTab',x==='tickets');vis('gachaTab',x==='gacha');if(x==='gacha'){loadGachaPrizes();loadGachaDraws()};if(x==='tour')loadTours();if(x==='rating')loadRatingAdmin();if(x==='home')loadHomeAdmin();if(x==='member')loadMembers();if(x==='openBills')loadOpenBills();if(x==='history')loadCheckoutHistory();if(x==='tickets'){loadTicketTypes();loadTicketGrantHistory()}}
 async function loadOpenBills(){
  const h=document.getElementById('openBillsList');if(!h)return;h.innerHTML='<div class="card muted">読み込み中...</div>';
  const tr=await sb.from('customer_tabs').select('*').eq('status','open').order('opened_at',{ascending:false});
@@ -535,5 +539,51 @@ async function cancelMemberCoupon(id,memberId){if(!confirm('このチケット�
 function closeMember(){document.getElementById('memberDetail').classList.add('hidden');document.getElementById('memberBillBack')?.classList.add('hidden');document.getElementById('memberManageArea')?.classList.remove('hidden')}
 document.getElementById('loginBtn')?.addEventListener('click',login);
 document.getElementById('pw')?.addEventListener('keydown',e=>{if(e.key==='Enter')login()});document.getElementById('saveNewPwBtn')?.addEventListener('click',saveNewPassword);document.getElementById('newPwConfirm')?.addEventListener('keydown',e=>{if(e.key==='Enter')saveNewPassword()});
+
+let gachaPrizeData=[];
+async function loadGachaPrizes(){
+ const el=document.getElementById('gachaPrizeRows');el.textContent='読み込み中…';
+ const {data,error}=await sb.rpc('gacha_staff_prizes');
+ if(error){el.textContent='SQL設定を確認してください：'+error.message;return}
+ gachaPrizeData=(data||[]).map(x=>({...x}));renderGachaPrizes();
+}
+function renderGachaPrizes(){
+ const el=document.getElementById('gachaPrizeRows');
+ el.innerHTML=gachaPrizeData.map((p,i)=>'<div class="card" style="padding:12px"><div class="row"><div style="flex:3;min-width:160px"><label class="muted">景品名</label><input value="'+esc(p.name)+'" oninput="gachaPrizeData['+i+'].name=this.value"></div><div style="flex:1;min-width:90px"><label class="muted">確率（%）</label><input type="number" min="0" max="100" step="1" value="'+Number(p.weight)+'" oninput="gachaPrizeData['+i+'].weight=Number(this.value);updateGachaTotal()"></div><div><label class="muted">抽選対象</label><div><input style="width:auto" type="checkbox" '+(p.active?'checked':'')+' onchange="gachaPrizeData['+i+'].active=this.checked;updateGachaTotal()"> ON</div></div><button class="btn2 danger" onclick="removeGachaPrize('+i+')">削除</button></div></div>').join('');
+ updateGachaTotal();
+}
+function updateGachaTotal(){
+ const total=gachaPrizeData.reduce((n,p)=>n+(p.active?Number(p.weight)||0:0),0);
+ const el=document.getElementById('gachaTotal');el.textContent='合計 '+total+'%';el.style.color=total===100?'#62e59c':'#ff8585';
+}
+function addGachaPrize(){gachaPrizeData.push({id:null,name:'新しい景品',weight:0,active:false});renderGachaPrizes()}
+function removeGachaPrize(i){gachaPrizeData.splice(i,1);renderGachaPrizes()}
+async function saveGachaPrizes(){
+ const msg=document.getElementById('gachaMsg');
+ const total=gachaPrizeData.reduce((n,p)=>n+(p.active?Number(p.weight)||0:0),0);
+ if(total!==100){msg.textContent='有効な景品の確率を合計100%にしてください。';return}
+ if(!confirm('ガチャ景品の設定を保存しますか？'))return;
+ msg.textContent='保存中…';
+ const {error}=await sb.rpc('gacha_manage_prizes',{p_items:gachaPrizeData.map(p=>({id:p.id||null,name:p.name,weight:Number(p.weight),active:!!p.active}))});
+ if(error){msg.textContent='保存失敗：'+error.message;return}
+ msg.textContent='保存しました。次の抽選から反映されます。';await loadGachaPrizes();
+}
+async function loadGachaDraws(){
+ const el=document.getElementById('gachaDrawRows');el.textContent='読み込み中…';
+ const {data,error}=await sb.rpc('gacha_staff_draws');
+ if(error){el.textContent='取得できません：'+error.message;return}
+ if(!data?.length){el.textContent='当選履歴はまだありません。';return}
+ el.innerHTML=data.map(d=>{
+ const expired=new Date(d.expires_at)<new Date(),status=d.used_at?'使用済み':expired?'期限切れ':'利用可能';
+ return '<div class="card" style="padding:12px"><div class="row"><div><b>'+esc(d.member_name)+'</b> <span class="muted">#'+esc(d.member_number)+'</span><div class="gold">'+esc(d.prize_name)+'</div><div class="muted">当選：'+new Date(d.drawn_at).toLocaleString('ja-JP')+' ／ 期限：'+new Date(d.expires_at).toLocaleString('ja-JP')+'</div></div><div><b>'+status+'</b> '+(!d.used_at&&!expired?'<button class="btn2" onclick="redeemGacha(\''+d.id+'\')">使用済みにする</button>':'')+'</div></div></div>'
+ }).join('');
+}
+async function redeemGacha(id){
+ if(!confirm('この景品を使用済みにしますか？'))return;
+ const {error}=await sb.rpc('gacha_redeem',{p_draw_id:id});
+ if(error)alert('処理できません：'+error.message);
+ await loadGachaDraws();
+}
+
 boot();setTimeout(startOrderRealtime,1200);
 </script><script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script><script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script></body></html>
