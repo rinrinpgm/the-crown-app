@@ -179,9 +179,12 @@ const crownThemeList=[
  {name:'DIAMOND',icon:'💎',color:'#84baff',soft:'#426ab4',glow:'#398dff45'},
  {name:'CROWN',icon:'👑',color:'#ffcc65',soft:'#9b3841',glow:'#d5284655'}];
 let crownThemeUnlocked=0;
+let crownThemeSelected='BRONZE';
+let crownThemeMemberToken='';
+let crownThemeSaving=false;
 function crownThemeLevel(r){if(r>=1800)return 5;if(r>=1700)return 4;if(r>=1600)return 3;if(r>=1500)return 2;if(r>=1400)return 1;return 0}
 function crownThemeApply(name){
- const t=crownThemeList.find(x=>x.name===name)||crownThemeList[2];
+ const t=crownThemeList.find(x=>x.name===name)||crownThemeList[0];
  document.body.dataset.crownTheme=t.name;
  const header=document.querySelector('.header'),hero=document.querySelector('.memberHero');
  if(header)header.setAttribute('data-rank-label',t.icon+' '+t.name);
@@ -190,41 +193,47 @@ function crownThemeApply(name){
  document.body.style.setProperty('--rank-soft',t.soft);
  document.body.style.setProperty('--rank-glow',t.glow);
 }
-function crownThemeRender(){
+function crownThemeRender(message){
  const el=document.getElementById('crownThemeOptions'),status=document.getElementById('crownThemeStatus');if(!el)return;
- const chosen=localStorage.getItem('crown_theme_selected')||'GOLD';
- el.innerHTML=crownThemeList.map((t,i)=>'<button class="crownThemeOption '+(chosen===t.name?'selected':'')+'" '+(i>crownThemeUnlocked?'disabled':'')+' onclick="crownThemeSelect(\''+t.name+'\')"><span class="crownThemeGem">'+(i>crownThemeUnlocked?'🔒':t.icon)+'</span>'+t.name+'</button>').join('');
- status.textContent='解放済み最高ランク：'+crownThemeList[crownThemeUnlocked].name+' ／ 獲得済みテーマはいつでも切替可能';
+ el.innerHTML=crownThemeList.map((t,i)=>'<button class="crownThemeOption '+(crownThemeSelected===t.name?'selected':'')+'" '+(i>crownThemeUnlocked||crownThemeSaving?'disabled':'')+' onclick="crownThemeSelect(\''+t.name+'\')"><span class="crownThemeGem">'+(i>crownThemeUnlocked?'🔒':t.icon)+'</span>'+t.name+'</button>').join('');
+ status.textContent=message||'解放済み最高ランク：'+crownThemeList[crownThemeUnlocked].name+' ／ テーマは会員情報に保存されます';
 }
-function crownThemeSelect(name){
- const i=crownThemeList.findIndex(t=>t.name===name);if(i<0||i>crownThemeUnlocked)return;
- localStorage.setItem('crown_theme_selected',name);crownThemeApply(name);crownThemeRender();
+async function crownThemeSelect(name){
+ const i=crownThemeList.findIndex(t=>t.name===name);
+ if(i<0||i>crownThemeUnlocked||crownThemeSaving||!crownThemeMemberToken)return;
+ crownThemeSaving=true;crownThemeRender('テーマを保存中…');
+ try{
+  const {data,error}=await sb.rpc('crown_theme_profile',{p_qr_token:crownThemeMemberToken,p_selected_theme:name});
+  if(error)throw error;
+  const row=Array.isArray(data)?data[0]:data;
+  if(!row)throw new Error('保存結果を確認できませんでした');
+  crownThemeUnlocked=Math.min(5,Math.max(0,Number(row.peak_level)||0));
+  crownThemeSelected=row.selected_theme;
+  localStorage.setItem('crown_theme_selected',crownThemeSelected);
+  crownThemeApply(crownThemeSelected);
+ }catch(e){console.error('Theme save failed',e);crownThemeRender('保存できません：'+(e.message||String(e)));return}
+ finally{crownThemeSaving=false}
+ crownThemeRender();
 }
 async function crownThemeLoad(token){
  if(!token)return;
- const key='crown_theme_peak_'+token;
- let peak=Number(localStorage.getItem(key)||0);
+ crownThemeMemberToken=token;
+ crownThemeRender('獲得ランクとテーマを読み込み中…');
  try{
-  const [a,b,c]=await Promise.all([
-   sb.rpc('get_member_rating_by_qr',{p_qr_token:token}),
-   sb.rpc('get_member_rating_history_by_qr',{p_qr_token:token}),
-   sb.rpc('get_member_ring_rating_by_qr',{p_qr_token:token})
-  ]);
-  const p=Array.isArray(a.data)?a.data[0]:a.data;
-  if(!a.error&&p&&Number(p.games_played||0)>=5)peak=Math.max(peak,crownThemeLevel(Number(p.current_rating||1500)));
-  if(!b.error&&Array.isArray(b.data)&&p&&Number(p.games_played||0)>=5){
-   for(const row of b.data)peak=Math.max(peak,crownThemeLevel(Number(row.rating_after??row.current_rating??row.rating??0)));
-  }
-  if(!c.error&&Array.isArray(c.data)&&c.data.length){
-   let rating=1500;
-   for(const row of c.data){rating+=ringRatingDelta(row.net_change);peak=Math.max(peak,crownThemeLevel(rating))}
-  }
- }catch(e){console.warn('Theme rating lookup failed',e)}
- crownThemeUnlocked=Math.min(5,Math.max(0,peak));
- localStorage.setItem(key,String(crownThemeUnlocked));
- const selected=localStorage.getItem('crown_theme_selected')||'GOLD';
- if(crownThemeList.findIndex(t=>t.name===selected)>crownThemeUnlocked){localStorage.setItem('crown_theme_selected',crownThemeList[crownThemeUnlocked].name)}
- crownThemeApply(localStorage.getItem('crown_theme_selected')||'BRONZE');crownThemeRender();
+  const {data,error}=await sb.rpc('crown_theme_profile',{p_qr_token:token});
+  if(error)throw error;
+  if(crownThemeMemberToken!==token)return;
+  const row=Array.isArray(data)?data[0]:data;
+  if(!row)throw new Error('会員テーマを取得できませんでした');
+  crownThemeUnlocked=Math.min(5,Math.max(0,Number(row.peak_level)||0));
+  crownThemeSelected=row.selected_theme||'BRONZE';
+  localStorage.setItem('crown_theme_selected',crownThemeSelected);
+  crownThemeApply(crownThemeSelected);
+  crownThemeRender();
+ }catch(e){
+  console.error('Theme load failed',e);
+  crownThemeRender('テーマの同期ができません。SupabaseでSETUP_CROWN_THEMES.sqlを実行してください。');
+ }
 }
 async function loadMyCrown(){
  if(!sb&&!init())return;
@@ -400,7 +409,7 @@ function updateTourMonthLabel(){const v=document.getElementById('tourMonth')?.va
 function syncTourMonth(){updateTourMonthLabel();loadTournaments()}
 function moveTourMonth(delta){const el=document.getElementById('tourMonth');let v=el.value;if(!v){const d=new Date();v=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}let [y,m]=v.split('-').map(Number);m+=delta;if(m<1){m=12;y--}if(m>12){m=1;y++}el.value=y+'-'+String(m).padStart(2,'0');syncTourMonth()}
 async function loadTournaments(){const h=document.getElementById('tourList');if(!sb&&!init()){h.innerHTML='<div class="card muted">接続設定が必要です。</div>';return}const m=document.getElementById('tourMonth');if(!m.value){const d=new Date();m.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}const [y,mo]=m.value.split('-').map(Number),last=new Date(y,mo,0).getDate(),todayTokyo=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()).replace(/\//g,'-'),from=(m.value+'-01')>todayTokyo?(m.value+'-01'):todayTokyo,to=m.value+'-'+String(last).padStart(2,'0');const {data,error}=await sb.from('tournaments').select('*').gte('event_date',from).lte('event_date',to).eq('published',true).order('event_date').order('start_time');if(error){h.innerHTML='<div class="card muted">'+esc(error.message)+'</div>';return}window._crownTours=data||[];h.innerHTML=(data||[]).length?(data||[]).map((x,i)=>`<div class="card tourCard" onclick="openTournament(${i})"><b>${esc(x.event_date)}　${esc((x.start_time||'').slice(0,5))}</b><h3>${esc(x.name)}</h3><p class="muted">ENTRY ¥${Number(x.entry_fee||0).toLocaleString()}${x.starting_stack?' / '+Number(x.starting_stack).toLocaleString()+' STACK':''}</p><div class="tourHint">詳細を見る ›</div></div>`).join(''):'<div class="card muted">この月の公開トーナメントはありません。</div>'}
-function yen(v){return v===null||v===undefined||v===''?'—':'¥'+Number(v).toLocaleString()}function num(v){return v===null||v===undefined||v===''?'—':Number(v).toLocaleString()}function openTournament(i){const x=(window._crownTours||[])[i];if(!x)return;document.getElementById('tdName').textContent=x.name||'';let image=x.image_url?`<img class="tourImage" src="${esc(x.image_url)}" alt="">`:'';let prize=x.prize?`<div class="detailItem" style="grid-column:1/-1"><small>PRIZE</small><div class="detailText">${esc(x.prize)}</div></div>`:'';let desc=x.description?`<div class="detailItem" style="grid-column:1/-1"><small>詳細・備考</small><div class="detailText">${esc(x.description)}</div></div>`:'';const start=(x.start_time||'').slice(0,5)||'—',late=(x.late_reg_time||'').slice(0,5)||'—';const sameStack=String(x.starting_stack??'')===String(x.reentry_stack??'')||!x.reentry_stack;const stackValue=sameStack?num(x.starting_stack):num(x.starting_stack)+' / '+num(x.reentry_stack);document.getElementById('tdBody').innerHTML=image+`<div class="detailGrid"><div class="detailItem"><small>開催日</small><b>${esc(x.event_date)}</b></div><div class="detailItem"><small>START / LATE</small><b>${esc(start)} / ${esc(late)}</b></div><div class="detailItem"><small>ENTRY / RE-ENTRY</small><b>${yen(x.entry_fee)} / ${yen(x.reentry_fee)}</b></div><div class="detailItem"><small>STACK</small><b>${stackValue}</b></div>${prize}${desc}</div>`;document.getElementById('tourModal').classList.add('open');document.body.style.overflow='hidden'}function closeTournament(){document.getElementById('tourModal').classList.remove('open');document.body.style.overflow=''}document.addEventListener('keydown',e=>{if(e.key==='Escape')closeTournament()});window.addEventListener('DOMContentLoaded',()=>{crownThemeApply(localStorage.getItem('crown_theme_selected')||'GOLD');if(init()){loadHome();const p=new URLSearchParams(location.search);if(p.get('member')||location.hash==='#my')show('my')}});setInterval(()=>{if(document.getElementById('ring').classList.contains('active'))loadRing()},5000);
+function yen(v){return v===null||v===undefined||v===''?'—':'¥'+Number(v).toLocaleString()}function num(v){return v===null||v===undefined||v===''?'—':Number(v).toLocaleString()}function openTournament(i){const x=(window._crownTours||[])[i];if(!x)return;document.getElementById('tdName').textContent=x.name||'';let image=x.image_url?`<img class="tourImage" src="${esc(x.image_url)}" alt="">`:'';let prize=x.prize?`<div class="detailItem" style="grid-column:1/-1"><small>PRIZE</small><div class="detailText">${esc(x.prize)}</div></div>`:'';let desc=x.description?`<div class="detailItem" style="grid-column:1/-1"><small>詳細・備考</small><div class="detailText">${esc(x.description)}</div></div>`:'';const start=(x.start_time||'').slice(0,5)||'—',late=(x.late_reg_time||'').slice(0,5)||'—';const sameStack=String(x.starting_stack??'')===String(x.reentry_stack??'')||!x.reentry_stack;const stackValue=sameStack?num(x.starting_stack):num(x.starting_stack)+' / '+num(x.reentry_stack);document.getElementById('tdBody').innerHTML=image+`<div class="detailGrid"><div class="detailItem"><small>開催日</small><b>${esc(x.event_date)}</b></div><div class="detailItem"><small>START / LATE</small><b>${esc(start)} / ${esc(late)}</b></div><div class="detailItem"><small>ENTRY / RE-ENTRY</small><b>${yen(x.entry_fee)} / ${yen(x.reentry_fee)}</b></div><div class="detailItem"><small>STACK</small><b>${stackValue}</b></div>${prize}${desc}</div>`;document.getElementById('tourModal').classList.add('open');document.body.style.overflow='hidden'}function closeTournament(){document.getElementById('tourModal').classList.remove('open');document.body.style.overflow=''}document.addEventListener('keydown',e=>{if(e.key==='Escape')closeTournament()});window.addEventListener('DOMContentLoaded',()=>{crownThemeApply(localStorage.getItem('crown_theme_selected')||'BRONZE');if(init()){loadHome();const p=new URLSearchParams(location.search);if(p.get('member')||location.hash==='#my')show('my')}});setInterval(()=>{if(document.getElementById('ring').classList.contains('active'))loadRing()},5000);
 
 // Daily gacha: draw and eligibility are enforced atomically by Supabase.
 let dailyGachaBusy=false;
