@@ -107,7 +107,7 @@ async function loadMyCrown(){
  crownCurrentMember=m;const mid=m.id;
  document.getElementById('myName').textContent=pick(m,['display_name','name','nickname'])||'MEMBER';
  const raw=pick(m,['member_number','member_no']);document.getElementById('myMemberNo').textContent='MEMBER ID  '+(raw!==null&&raw!==undefined&&raw!==''?String(raw).padStart(4,'0'):'');
- renderMemberQr(token);renderDeviceSaveArea(token,!!savedToken);loadDailyGacha();
+ currentGachaMemberToken=token;renderMemberQr(token);renderDeviceSaveArea(token,!!savedToken);loadDailyGacha();
  await loadCrownBillReadOnly(m);loadMyCheckoutHistory();loadRatingPublicSetting();loadRingRatingPublicSetting();
  const {data:coinRows,error:coinError}=await sb.rpc('get_member_coin_by_qr',{p_qr_token:token});const coinRow=Array.isArray(coinRows)?coinRows[0]:coinRows;
  document.getElementById('myCoin').textContent=coinError?'— cc':Number(pick(coinRow,['balance','amount','coin_balance'])||0).toLocaleString()+' cc';
@@ -274,30 +274,53 @@ function yen(v){return v===null||v===undefined||v===''?'—':'¥'+Number(v).toLo
 
 // Daily gacha: draw and eligibility are enforced atomically by Supabase.
 let dailyGachaBusy=false;
-function gachaToken(){return new URLSearchParams(location.search).get('member')||localStorage.getItem('crown_member_token')||''}
+let currentGachaMemberToken='';
+function gachaToken(){return currentGachaMemberToken||new URLSearchParams(location.search).get('member')||localStorage.getItem('crown_member_token')||''}
 function gachaDeadline(){const d=new Date();const tokyo=new Date(d.toLocaleString('en-US',{timeZone:'Asia/Tokyo'}));if(tokyo.getHours()<5)tokyo.setDate(tokyo.getDate()-1);tokyo.setDate(tokyo.getDate()+1);tokyo.setHours(5,0,0,0);return tokyo}
 async function loadDailyGacha(){
  const result=document.getElementById('dailyGachaResult'),btn=document.getElementById('dailyGachaBtn'),expiry=document.getElementById('dailyGachaExpiry');
- if(!result||!btn||!sb)return;
+ if(!result||!btn)return;
  btn.disabled=true;result.textContent='確認中…';
- const {data,error}=await sb.rpc('daily_gacha',{p_qr_token:gachaToken(),p_draw:false});
- if(error){result.textContent='ガチャの準備がまだ完了していません。';expiry.textContent='店舗にお問い合わせください。';return}
- const row=data?.[0];
- if(row){
+ const token=gachaToken();
+ if(!token){result.textContent='会員情報が取得できません。会員証からMY CROWNを開き直してください。';return}
+ try{
+  if(!sb&&!init())throw new Error('Supabaseに接続できません');
+  const {data,error}=await sb.rpc('daily_gacha',{p_qr_token:token,p_draw:false});
+  if(error)throw error;
+  const row=data?.[0];
+  if(row){
    result.textContent='🎁 '+row.prize_name;
    expiry.textContent=(row.used_at?'使用済み ／ ':'本日当選済み ／ ')+'有効期限：'+new Date(row.expires_at).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
- }else{result.textContent='本日のガチャはまだ引いていません！';expiry.textContent='当選景品は翌朝4:59まで有効';btn.disabled=false}
+  }else{
+   result.textContent='本日のガチャはまだ引いていません！';
+   expiry.textContent='当選景品は翌朝4:59まで有効';
+   btn.disabled=false;
+  }
+ }catch(e){
+  console.error('Daily gacha load failed',e);
+  result.textContent='ガチャの読み込みエラー：'+(e?.message||String(e));
+  expiry.textContent='スタッフにこのエラーをお知らせください。';
+ }
 }
 async function drawDailyGacha(){
- if(dailyGachaBusy||!sb||!gachaToken())return;
- dailyGachaBusy=true;const btn=document.getElementById('dailyGachaBtn'),result=document.getElementById('dailyGachaResult');
- btn.disabled=true;result.textContent='🎰 抽選中…';
+ const btn=document.getElementById('dailyGachaBtn'),result=document.getElementById('dailyGachaResult'),expiry=document.getElementById('dailyGachaExpiry');
+ if(!btn||!result)return;
+ if(dailyGachaBusy){result.textContent='抽選処理中です。少しお待ちください。';return}
+ const token=gachaToken();
+ if(!token){result.textContent='会員情報が見つかりません。会員証からMY CROWNを開き直してください。';return}
+ dailyGachaBusy=true;btn.disabled=true;result.textContent='🎰 抽選中…';
  try{
-  const {data,error}=await sb.rpc('daily_gacha',{p_qr_token:gachaToken(),p_draw:true});
+  if(!sb&&!init())throw new Error('Supabaseに接続できません');
+  const {data,error}=await sb.rpc('daily_gacha',{p_qr_token:token,p_draw:true});
   if(error)throw error;
-  result.textContent='🎉 '+(data?.[0]?.prize_name||'抽選結果を確認してください');
+  if(!data?.[0])throw new Error('抽選結果が返されませんでした');
+  result.textContent='🎉 '+data[0].prize_name;
   await loadDailyGacha();
- }catch(e){result.textContent='抽選に失敗しました。もう一度確認してください。';await loadDailyGacha()}
- finally{dailyGachaBusy=false}
+ }catch(e){
+  console.error('Daily gacha draw failed',e);
+  result.textContent='抽選エラー：'+(e?.message||String(e));
+  expiry.textContent='このメッセージをスタッフにお見せください。';
+  btn.disabled=false;
+ }finally{dailyGachaBusy=false}
 }
 </script><script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script></body></html>
