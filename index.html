@@ -109,7 +109,7 @@ body[data-crown-theme="CROWN"] .memberHero{background:radial-gradient(ellipse at
 <div class="gold" style="font-size:12px;letter-spacing:.15em">THE CROWN DAILY GACHA</div>
 <h2 style="margin:9px 0">🎰 本日のガチャ</h2>
 <p class="muted">毎日1回チャレンジ！ 5:00〜翌4:59が1営業日です。景品は当日限り有効。</p>
-<div id="gachaMachine"><div class="gachaTitle">✦ CROWN LUCKY SLOT ✦</div><div id="gachaReels"><div class="gachaReel">♠</div><div class="gachaReel">♦</div><div class="gachaReel">♛</div></div><div class="gachaMachineCaption" id="gachaMachineCaption">TODAY'S LUCK</div></div><div id="dailyGachaResult" style="font-size:17px;font-weight:700;margin:14px 0">読み込み中…</div><div id="gachaTicket" hidden><div class="ticketHeading">✦ THE CROWN WINNING TICKET ✦</div><div class="ticketPrize" id="gachaTicketPrize"></div><div class="ticketFoot" id="gachaTicketStatus">当選おめでとうございます</div><button id="gachaRedeemBtn" onclick="openGachaRedeem()" hidden>🎟️ チケットを使用する</button></div>
+<div id="gachaMachine"><div class="gachaTitle">✦ CROWN LUCKY SLOT ✦</div><div id="gachaReels"><div class="gachaReel">♠</div><div class="gachaReel">♦</div><div class="gachaReel">♛</div></div><div class="gachaMachineCaption" id="gachaMachineCaption">TODAY'S LUCK</div></div><div id="gachaBonusStatus" style="margin:12px 0;padding:12px;border:1px solid #c8a75b;border-radius:12px;background:linear-gradient(110deg,#302411,#16120d);text-align:center;color:#f8d991;font-weight:900">👑 BONUS確認中…</div><div id="dailyGachaResult" style="font-size:17px;font-weight:700;margin:14px 0">読み込み中…</div><div id="gachaTicket" hidden><div class="ticketHeading">✦ THE CROWN WINNING TICKET ✦</div><div class="ticketPrize" id="gachaTicketPrize"></div><div class="ticketFoot" id="gachaTicketStatus">当選おめでとうございます</div><button id="gachaRedeemBtn" onclick="openGachaRedeem()" hidden>🎟️ チケットを使用する</button></div>
 <button class="btn2" id="dailyGachaBtn" onclick="drawDailyGacha()" disabled>ガチャを回す</button>
 <div id="dailyGachaExpiry" class="muted" style="margin-top:10px"></div></div><div id="gachaRedeemOverlay" hidden><div id="gachaRedeemDialog" role="dialog" aria-modal="true" aria-labelledby="gachaRedeemHeading"><h2 id="gachaRedeemHeading">🎟️ チケット使用確認</h2><div class="gachaRedeemPrize" id="gachaRedeemPrize"></div><p class="gachaRedeemNotice">スタッフにこの画面を見せて、<br><b style="color:#f5cf79">スタッフに「使用を確定する」を押してもらってください。</b></p><p class="muted">確定すると取り消しできません。</p><div id="gachaRedeemMessage" style="color:#ffb9a6"></div><button id="gachaRedeemConfirm" onclick="confirmGachaRedeem()">スタッフ確認・使用を確定する</button><button id="gachaRedeemCancel" onclick="closeGachaRedeem()">キャンセル</button></div></div><div id="myUnusedBilling" style="display:none"><div id="myBillArea" class="myBlock"></div><div class="mySectionHead"><div><small>BENEFITS</small><h2>COUPON</h2></div></div><div id="myCoupons" class="couponGrid"><div class="card muted">クーポンはありません。</div></div>
 <div class="mySectionHead"><div><small>HISTORY</small><h2>会計履歴</h2></div></div><div class="historyCard"><div class="row"><div><b>過去のお会計</b><div class="muted">会計済みの伝票を確認できます</div></div><button class="miniBtn" onclick="loadMyCheckoutHistory()">更新</button></div><div class="field compactField"><label>表示する月</label><input id="myHistoryMonth" type="month" onchange="loadMyCheckoutHistory()"></div><div id="myCheckoutHistory" class="sectionSep"><div class="muted">読み込み中...</div></div></div>
@@ -246,7 +246,7 @@ async function loadMyCrown(){
  crownCurrentMember=m;const mid=m.id;
  document.getElementById('myName').textContent=pick(m,['display_name','name','nickname'])||'MEMBER';
  const raw=pick(m,['member_number','member_no']);document.getElementById('myMemberNo').textContent='MEMBER ID  '+(raw!==null&&raw!==undefined&&raw!==''?String(raw).padStart(4,'0'):'');
- currentGachaMemberToken=token;crownThemeLoad(token);renderMemberQr(token);renderDeviceSaveArea(token,!!savedToken);loadDailyGacha();
+ currentGachaMemberToken=token;crownThemeLoad(token);loadGachaBonusStatus(token);renderMemberQr(token);renderDeviceSaveArea(token,!!savedToken);loadDailyGacha();
  await loadCrownBillReadOnly(m);loadMyCheckoutHistory();loadRatingPublicSetting();loadRingRatingPublicSetting();
  const {data:coinRows,error:coinError}=await sb.rpc('get_member_coin_by_qr',{p_qr_token:token});const coinRow=Array.isArray(coinRows)?coinRows[0]:coinRows;
  document.getElementById('myCoin').textContent=coinError?'— cc':Number(pick(coinRow,['balance','amount','coin_balance'])||0).toLocaleString()+' cc';
@@ -419,6 +419,16 @@ let dailyGachaCurrentRow=null;
 let currentGachaMemberToken='';
 function gachaToken(){return currentGachaMemberToken||new URLSearchParams(location.search).get('member')||localStorage.getItem('crown_member_token')||''}
 function gachaDeadline(){const d=new Date();const tokyo=new Date(d.toLocaleString('en-US',{timeZone:'Asia/Tokyo'}));if(tokyo.getHours()<5)tokyo.setDate(tokyo.getDate()-1);tokyo.setDate(tokyo.getDate()+1);tokyo.setHours(5,0,0,0);return tokyo}
+async function loadGachaBonusStatus(token){
+ const el=document.getElementById('gachaBonusStatus');if(!el||!token)return;
+ el.textContent='👑 BONUS確認中…';
+ const {data,error}=await sb.rpc('gacha_current_bonus',{p_qr_token:token});
+ if(error){el.textContent='BONUSランクを取得できません（SQL設定を確認）';return}
+ const row=Array.isArray(data)?data[0]:data;
+ if(!row){el.textContent='BONUSランクを取得できません';return}
+ const rank=String(row.rank_name||'BRONZE'),rating=Number(row.rating||1500);
+ el.textContent='👑 '+rank+' BONUS 適用中  ✦  現在のRating '+rating.toLocaleString('ja-JP');
+}
 const gachaFaces=['♠','♥','♦','♣','★','♛'];
 let gachaPrizeWeights=null;
 async function fetchGachaPrizeWeights(){try{const {data,error}=await sb.rpc('gacha_public_prize_weights');if(!error&&Array.isArray(data))gachaPrizeWeights=data}catch(e){console.warn('Gacha weights unavailable',e)}}
