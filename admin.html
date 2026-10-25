@@ -289,18 +289,31 @@ async function loadSalesAnalytics(){
   }
   const active=Object.values(people).filter(p=>p.days.size||p.bills).sort((a,b)=>b.days.size-a.days.size||b.sales-a.sales);
   const dayRows=Object.entries(days).filter(([d])=>inPeriod(d)).sort((a,b)=>a[0].localeCompare(b[0]));
-  const weekday=['日','月','火','水','木','金','土'],weekly=weekday.map(w=>({name:w,visits:0,sales:0,dates:0}));
-  for(const [date,d] of dayRows){const w=weekly[new Date(date+'T12:00:00Z').getUTCDay()];w.visits+=d.visitors.size;w.sales+=d.sales;w.dates++}
+  const weekday=['日','月','火','水','木','金','土'],weekly=weekday.map(w=>({name:w,visits:0,sales:0,dates:0,people:new Map(),newCount:0,repeatCount:0}));
+  const allVisitDates=new Map();
+  for(const t of tabs){const d=salesDay(t.opened_at);if(t.member_id&&d){const prev=allVisitDates.get(t.member_id);if(!prev||d<prev)allVisitDates.set(t.member_id,d)}}
+  for(const t of sessions){const linked=tabById[String(t.tab_id)];if(linked){const d=salesDay(linked.opened_at),mid=t.member_id||linked.member_id;if(mid&&d){const prev=allVisitDates.get(mid);if(!prev||d<prev)allVisitDates.set(mid,d)}}}
+  for(const t of results){const d=tourDates[t.tournament_id];if(t.member_id&&d){const prev=allVisitDates.get(t.member_id);if(!prev||d<prev)allVisitDates.set(t.member_id,d)}}
+  for(const [date,d] of dayRows){
+   const w=weekly[new Date(date+'T12:00:00Z').getUTCDay()];
+   w.visits+=d.visitors.size;w.sales+=d.sales;w.dates++;
+   for(const mid of d.visitors){if(!w.people.has(mid))w.people.set(mid,[]);w.people.get(mid).push(date)}
+  }
+  for(const w of weekly)for(const [mid,dates] of w.people){
+   if(allVisitDates.get(mid)===dates[0])w.newCount++;
+   else w.repeatCount++;
+  }
   const visits=dayRows.reduce((a,[,d])=>a+d.visitors.size,0),unique=new Set(dayRows.flatMap(([,d])=>[...d.visitors])).size;
   const yen=n=>'¥'+Math.round(n).toLocaleString(),num=n=>n.toLocaleString();
   h.innerHTML='<div class="card"><h3>店舗全体</h3><div class="formgrid">'+[
    ['会計売上（伝票合計）',yen(gross)],['延べ来店数',num(visits)+'回'],['来店実人数',num(unique)+'人'],['来店1回あたり売上',yen(visits?gross/visits:0)],['会計件数',num(paid.length)+'件'],['分析対象顧客',num(active.length)+'人']
   ].map(([k,v])=>'<div class="card"><div class="muted">'+k+'</div><h2 class="gold">'+v+'</h2></div>').join('')+'</div></div>'+
-  '<div class="card"><h3>📅 曜日別</h3><div style="overflow:auto"><table style="width:100%;min-width:400px;text-align:right"><thead><tr><th>曜日</th><th>延べ来店</th><th>売上</th><th>営業日平均来店</th></tr></thead><tbody>'+weekly.map(w=>'<tr><td>'+w.name+'</td><td>'+num(w.visits)+'</td><td>'+yen(w.sales)+'</td><td>'+(w.dates?(w.visits/w.dates).toFixed(1):'—')+'</td></tr>').join('')+'</tbody></table></div><p class="muted">平均は来店・会計記録がある日のみを母数にしています。</p></div>'+
+  '<div class="card"><h3>📅 曜日別の来店状況</h3><p class="muted">「実人数」は期間中その曜日に来た異なるお客様の数。「来店回数」は同じお客様の複数日来店も含みます。曜日を押すと会員別の内訳を確認できます。</p><div style="overflow:auto"><table style="width:100%;min-width:690px;text-align:right;border-collapse:separate;border-spacing:0 9px"><thead><tr><th style="text-align:left">曜日</th><th>来店実人数</th><th>来店回数合計</th><th>1人平均</th><th>初回来店</th><th>既存客</th><th>売上</th><th>日平均来店</th></tr></thead><tbody>'+weekly.map((w,i)=>'<tr style="background:#211c13"><td style="text-align:left;padding:13px 9px"><button class="btn2" style="font-size:15px;font-weight:900" onclick="salesToggleWeek('+i+')">'+w.name+'曜 ▾</button></td><td><b class="gold">'+num(w.people.size)+'人</b></td><td><b>'+num(w.visits)+'回</b></td><td>'+(w.people.size?(w.visits/w.people.size).toFixed(1):'—')+'回</td><td>'+w.newCount+'人</td><td>'+w.repeatCount+'人</td><td>'+yen(w.sales)+'</td><td>'+(w.dates?(w.visits/w.dates).toFixed(1):'—')+'人</td></tr><tr id="salesWeekDetail'+i+'" style="display:none"><td colspan="8" style="padding:10px;background:#141414"><b class="gold">'+w.name+'曜日に来たお客様</b><div style="overflow:auto;margin-top:10px"><table style="width:100%;min-width:480px"><thead><tr><th style="text-align:left">会員名</th><th>来店回数</th><th style="text-align:left">来店日</th></tr></thead><tbody>'+([...w.people.entries()].sort((a,b)=>b[1].length-a[1].length).map(([mid,dates])=>{const p=people[mid]||{};return '<tr><td style="text-align:left;padding:8px">'+esc(p.display_name||p.nickname||'会員')+' #'+esc(String(p.member_number||''))+'</td><td style="text-align:center">'+dates.length+'回</td><td style="text-align:left">'+dates.map(d=>esc(d.slice(5))).join('、')+'</td></tr>'}).join('')||'<tr><td colspan="3">来店記録なし</td></tr>')+'</tbody></table></div></td></tr>').join('')+'</tbody></table></div><p class="muted">初回来店＝取得できた全記録の最初の来店日が対象期間のその曜日にあるお客様。既存客＝それ以前にも来店記録があるお客様。日平均は記録がある日のみで算出。</p></div>'+
   '<div class="card"><h3>👥 顧客別</h3><input id="salesMemberSearch" placeholder="会員名・会員番号で検索" oninput="salesFilterMembers()" style="width:100%;margin-bottom:12px"><div style="overflow:auto"><table style="width:100%;min-width:560px;text-align:right"><thead><tr><th style="text-align:left">会員</th><th>来店回数</th><th>売上</th><th>会計件数</th><th>最終来店</th></tr></thead><tbody id="salesMemberRows">'+active.map(p=>'<tr data-search="'+esc(String(p.display_name||p.nickname||'')+' '+String(p.member_number||''))+'"><td style="text-align:left">'+esc(p.display_name||p.nickname||'会員')+' #'+esc(String(p.member_number||''))+'</td><td>'+p.days.size+'</td><td>'+yen(p.sales)+'</td><td>'+p.bills+'</td><td>'+esc(p.last||'—')+'</td></tr>').join('')+'</tbody></table></div></div>'+
   '<p class="muted">※ 来店判定にはRating結果に登録済みの大会のみ含まれます。未登録の大会参加者や伝票未作成の来店は集計できません。売上は現金収入ではなく伝票合計です。</p>';
  }catch(e){console.error(e);h.innerHTML='<div class="card err">分析データを取得できません：'+esc(e.message||String(e))+'</div>'}
 }
+function salesToggleWeek(i){const row=document.getElementById('salesWeekDetail'+i);if(row)row.style.display=row.style.display==='none'?'table-row':'none'}
 function salesFilterMembers(){
  const term=(document.getElementById('salesMemberSearch')?.value||'').toLowerCase();
  document.querySelectorAll('#salesMemberRows tr').forEach(row=>row.style.display=(row.dataset.search||'').toLowerCase().includes(term)?'':'none');
