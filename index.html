@@ -43,6 +43,31 @@ body[data-crown-theme="PLATINUM"] .memberHero:after{content:"✦ ✦ ✦";displa
 .crownThemeOption.selected{outline:2px solid var(--rank-accent);outline-offset:1px}
 .crownThemeGem{display:block;font-size:23px;margin-bottom:6px}
 @media(prefers-reduced-motion:reduce){body[data-crown-theme] .memberHero:after{animation:none}}
+</style><style>
+/* PREMIUM RANK: dramatic full-page styling */
+body[data-crown-theme]{--theme-bg:#24190f;--theme-deep:#0b0806;--theme-panel:#302014;--theme-border:#c18a58;--theme-contrast:#fff3dc;background:radial-gradient(ellipse 115% 70% at 50% 0%,var(--theme-bg) 0%,var(--theme-deep) 78%) fixed!important;color:var(--theme-contrast)}
+body[data-crown-theme="BRONZE"]{--theme-bg:#51301d;--theme-deep:#140d09;--theme-panel:#392416;--theme-border:#ce8650;--rank-accent:#e6a16c}
+body[data-crown-theme="SILVER"]{--theme-bg:#394754;--theme-deep:#0c1118;--theme-panel:#24323d;--theme-border:#c5d6e6;--rank-accent:#e1ebf7}
+body[data-crown-theme="GOLD"]{--theme-bg:#65501b;--theme-deep:#130e04;--theme-panel:#33290d;--theme-border:#e6ba4c;--rank-accent:#ffda77}
+body[data-crown-theme="PLATINUM"]{--theme-bg:#15535d;--theme-deep:#07191e;--theme-panel:#133a41;--theme-border:#86e7ed;--rank-accent:#b4fbff}
+body[data-crown-theme="DIAMOND"]{--theme-bg:#123e89;--theme-deep:#050e29;--theme-panel:#102d63;--theme-border:#7dbdff;--rank-accent:#c4e6ff}
+body[data-crown-theme="CROWN"]{--theme-bg:#731425;--theme-deep:#1c070c;--theme-panel:#48131e;--theme-border:#f8c45d;--rank-accent:#ffdb81}
+body[data-crown-theme] .header{background:linear-gradient(115deg,var(--theme-deep),var(--theme-bg),var(--theme-deep))!important;border-bottom:4px solid var(--theme-border)!important;box-shadow:0 5px 32px var(--rank-glow),0 5px 18px #000b!important}
+body[data-crown-theme] .header .brand{color:var(--rank-accent)!important;text-shadow:0 0 18px var(--rank-glow),0 2px 4px #000!important}
+body[data-crown-theme] .header:after{content:attr(data-rank-label);display:block;position:absolute;right:13px;top:50%;transform:translateY(-50%);border:2px solid var(--theme-border);border-radius:8px;padding:6px 9px;font-size:10px;font-weight:900;letter-spacing:.09em;color:var(--rank-accent);background:#0008;box-shadow:0 0 14px var(--rank-glow)}
+body[data-crown-theme] .content{background:transparent!important}
+body[data-crown-theme] .card,body[data-crown-theme] .memberHero,body[data-crown-theme] #crownThemePanel{background:linear-gradient(140deg,var(--theme-panel),var(--theme-deep))!important;border:3px solid var(--theme-border)!important;box-shadow:0 0 0 1px #ffffff14,inset 0 0 26px var(--rank-glow),0 8px 25px #000a,0 0 24px var(--rank-glow)!important}
+body[data-crown-theme] .tourCard,body[data-crown-theme] .homeHero{border-left:7px solid var(--theme-border)!important}
+body[data-crown-theme] .title,body[data-crown-theme] .homeSectionTitle{color:var(--rank-accent)!important;text-shadow:0 0 15px var(--rank-glow)}
+body[data-crown-theme] .nav{background:linear-gradient(180deg,var(--theme-bg),var(--theme-deep))!important;border-top:3px solid var(--theme-border)!important;box-shadow:0 -6px 22px var(--rank-glow)!important}
+body[data-crown-theme] .nav button.active{color:var(--rank-accent)!important;text-shadow:0 0 12px var(--rank-glow)}
+body[data-crown-theme] .btn2,body[data-crown-theme] .miniBtn{background:linear-gradient(135deg,var(--theme-panel),var(--theme-bg))!important;border:2px solid var(--theme-border)!important;color:var(--rank-accent)!important;font-weight:800;box-shadow:0 0 12px var(--rank-glow)}
+body[data-crown-theme] .memberQrFrame{border:5px solid var(--theme-border)!important;box-shadow:0 0 25px var(--rank-glow)!important}
+body[data-crown-theme] .memberHero:before{content:attr(data-rank-label);display:block;text-align:center;font-family:Georgia,serif;font-size:clamp(18px,5vw,26px);font-weight:900;letter-spacing:.2em;color:var(--rank-accent);text-shadow:0 0 20px var(--rank-glow);margin-bottom:14px}
+body[data-crown-theme="DIAMOND"] .memberHero,body[data-crown-theme="CROWN"] .memberHero{border-width:5px!important}
+body[data-crown-theme="DIAMOND"] .memberHero{background:radial-gradient(ellipse at top,#245dc1,var(--theme-deep) 75%)!important}
+body[data-crown-theme="CROWN"] .memberHero{background:radial-gradient(ellipse at top,#902138,var(--theme-deep) 75%)!important}
+@media(max-width:480px){body[data-crown-theme] .header:after{font-size:9px;padding:5px;right:8px}body[data-crown-theme] .header .brand{font-size:clamp(22px,6vw,38px)}}
 </style><section id="my" class="page"><h1 class="title">MY CROWN</h1>
 <div id="myQrGuide" class="card"><div class="gold" style="font-size:12px;letter-spacing:.12em">MY CROWN</div><h2 style="margin:7px 0">会員QRからアクセスしてください</h2><p class="muted">店舗で発行された会員QRを読み取ると、会員証とデイリーガチャを利用できます。</p></div>
 <div id="myMember" class="hidden myCrown">
@@ -158,6 +183,9 @@ function crownThemeLevel(r){if(r>=1800)return 5;if(r>=1700)return 4;if(r>=1600)r
 function crownThemeApply(name){
  const t=crownThemeList.find(x=>x.name===name)||crownThemeList[2];
  document.body.dataset.crownTheme=t.name;
+ const header=document.querySelector('.header'),hero=document.querySelector('.memberHero');
+ if(header)header.setAttribute('data-rank-label',t.icon+' '+t.name);
+ if(hero)hero.setAttribute('data-rank-label',t.icon+' '+t.name);
  document.body.style.setProperty('--rank-accent',t.color);
  document.body.style.setProperty('--rank-soft',t.soft);
  document.body.style.setProperty('--rank-glow',t.glow);
