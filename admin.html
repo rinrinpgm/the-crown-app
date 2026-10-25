@@ -35,7 +35,7 @@
 <div id="tourTab" class="hidden"><div class="card"><div class="row"><div><h3 id="tourFormTitle">トーナメント新規作成</h3><p class="muted">Supabaseへ保存します。</p></div><button class="btn2" onclick="resetTourForm()">入力をクリア</button></div><input type="hidden" id="tourId"><div class="formgrid"><div class="field"><label>トーナメント名</label><input id="tourName"></div><div class="field"><label>開催日</label><input id="tourDate" type="date"></div><div class="field"><label>START</label><input id="tourStart" type="time"></div><div class="field"><label>LATE</label><input id="tourLate" type="time"></div><div class="field"><label>ENTRY（円）</label><input id="tourEntry" type="number" min="0" step="100"></div><div class="field"><label>RE-ENTRY（円）</label><input id="tourReentry" type="number" min="0" step="100"></div><div class="field"><label>START STACK</label><input id="tourStack" type="number" min="0" step="1000"></div><div class="field"><label>RE-ENTRY STACK</label><input id="tourReentryStack" type="number" min="0" step="1000"></div><div class="field"><label>公開設定</label><select id="tourPublished"><option value="true">公開</option><option value="false">非公開</option></select></div><div class="field"><label>告知画像</label><input id="tourImageFile" type="file" accept="image/*" onchange="previewTourImage()"><input id="tourImage" type="hidden"><div id="tourImagePreview" class="muted" style="margin-top:8px">画像を選択してください</div></div></div><div class="field" style="margin-top:12px"><label>PRIZE</label><textarea id="tourPrize" placeholder="例：1位 100,000coin / 2位 50,000coin"></textarea></div><div class="field" style="margin-top:12px"><label>詳細・備考</label><textarea id="tourDescription" placeholder="割引、飲み放題、特殊ルールなど"></textarea></div><div class="tourActions"><button class="btn" onclick="saveTour()">保存</button></div><div id="tourMsg"></div></div><div class="card"><div class="row"><div><h3>一括作成</h3><p class="muted">同じトーナメントを指定期間・曜日でまとめて登録</p></div></div><div class="formgrid"><div class="field"><label>トーナメント名</label><input id="bulkName"></div><div class="field"><label>START</label><input id="bulkStart" type="time"></div><div class="field"><label>LATE</label><input id="bulkLate" type="time"></div><div class="field"><label>ENTRY（円）</label><input id="bulkEntry" type="number" min="0" step="100"></div><div class="field"><label>RE-ENTRY（円）</label><input id="bulkReentry" type="number" min="0" step="100"></div><div class="field"><label>START STACK</label><input id="bulkStack" type="number" min="0" step="1000"></div><div class="field"><label>RE-ENTRY STACK</label><input id="bulkReentryStack" type="number" min="0" step="1000"></div><div class="field"><label>告知画像</label><input id="bulkImageFile" type="file" accept="image/*" onchange="previewBulkImage()"><input id="bulkImage" type="hidden"><div id="bulkImagePreview" class="muted" style="margin-top:8px">画像を選択してください</div></div><div class="field"><label>開始日</label><input id="bulkFrom" type="date"></div><div class="field"><label>終了日</label><input id="bulkTo" type="date"></div></div><div class="field" style="margin-top:12px"><label>PRIZE</label><textarea id="bulkPrize"></textarea></div><div class="field" style="margin-top:12px"><label>詳細・備考</label><textarea id="bulkDescription"></textarea></div><div class="field" style="margin-top:12px"><label>開催曜日</label><div class="tourActions">日 <input type="checkbox" class="bulkDow" value="0" style="width:auto"> 月 <input type="checkbox" class="bulkDow" value="1" style="width:auto"> 火 <input type="checkbox" class="bulkDow" value="2" style="width:auto"> 水 <input type="checkbox" class="bulkDow" value="3" style="width:auto"> 木 <input type="checkbox" class="bulkDow" value="4" style="width:auto"> 金 <input type="checkbox" class="bulkDow" value="5" style="width:auto"> 土 <input type="checkbox" class="bulkDow" value="6" style="width:auto"></div></div><div class="tourActions"><button class="btn" onclick="bulkCreateTours()">一括作成</button></div><div id="bulkMsg"></div></div><div class="card"><div class="row"><div><h3>トーナメント一覧</h3><p class="muted">月曜始まりの1週間ごとに表示します。</p></div><button class="btn2" onclick="loadTours()">更新</button></div><div id="tourWeeks" class="tourActions" style="margin-top:14px"></div></div><div id="tours"></div><div class="card" style="margin-top:16px"><button id="pastToursToggle" class="btn2" onclick="togglePastTours()">終了したトナメはこちら ▼</button><div id="pastTours" class="hidden" style="margin-top:16px"></div></div></div></section><div id="ticketsTab" class="hidden"><div class="card"><div class="row"><div><h3>割引・チケット管理</h3><p class="muted">会計で使用する割引券・無料券・チケットを追加・変更・停止できます。</p></div><button class="btn2" onclick="loadTicketTypes()">更新</button></div><div class="formgrid"><div class="field"><label>名称</label><input id="ticketTypeName" placeholder="例：トナメ5,000円引き券"></div><div class="field"><label>種類</label><select id="ticketTypeKind"><option value="fixed">金額割引</option><option value="full">対象明細を無料</option><option value="manual">使用時に金額入力</option></select></div><div class="field"><label>割引額</label><input id="ticketTypeAmount" type="number" min="0" step="100" placeholder="5000"></div><div class="field"><label>対象</label><select id="ticketTypeTarget"><option value="tournament">トーナメントのみ</option><option value="ring">リングのみ</option><option value="noncc">ドリンク等</option><option value="any">すべて</option></select></div><div class="field"><label>デフォルト有効期限</label><select id="ticketTypeExpiry"><option value="0">期限なし</option><option value="1">付与から1か月</option><option value="2" selected>付与から2か月</option><option value="3">付与から3か月</option><option value="6">付与から6か月</option><option value="12">付与から1年</option></select></div></div><button class="btn" style="margin-top:12px" onclick="saveTicketType()">追加</button><div id="ticketTypeMsg"></div></div><div id="ticketTypesList"></div><div class="card" style="margin-top:18px"><div class="row"><div><h3 style="margin:0">チケット付与・取消履歴</h3><p class="muted">誰に・何を・いつ付与／取消したか確認できます。</p></div><button class="btn2" onclick="refreshTicketGrantHistory(this)">更新</button></div><div id="ticketGrantHistory"><div class="muted">読み込み中...</div></div></div></div>
 <div id="analyticsTab" class="hidden">
 <div class="card"><div class="row"><h3>📊 売上・来店分析</h3><button class="btn2" onclick="loadSalesAnalytics()">更新</button></div>
-<p class="muted">来店は会計・リング・トーナメントRating結果から自動判定。午前5時で営業日を区切り、同日複数利用は1回来店。売上は会計済み伝票の合計額（CC利用前・割引反映後）です。</p>
+<p class="muted">来店は会計・リングRating入力履歴・リング伝票・トーナメントRating結果から自動判定。午前5時で営業日を区切り、同日複数利用は1回来店。売上は会計済み伝票の合計額（CC利用前・割引反映後）です。</p>
 <div class="formgrid"><div class="field"><label>開始日</label><input type="date" id="analyticsFrom"></div><div class="field"><label>終了日</label><input type="date" id="analyticsTo"></div></div>
 <div class="historyQuick"><button class="btn2" onclick="salesPreset('week')">直近7日</button><button class="btn2" onclick="salesPreset('month')">今月</button><button class="btn2" onclick="salesPreset('last')">先月</button><button class="btn2" onclick="salesPreset('all')">全期間</button><button class="btn2" onclick="loadSalesAnalytics()">分析する</button></div></div>
 <div id="salesAnalysisResult"><div class="card muted">期間を選択して分析してください。</div></div>
@@ -246,6 +246,22 @@ async function salesFetchAll(table,cols,filter){
  }
  throw new Error(table+' のデータが30,000件を超えています。集計期間を短くしてください。');
 }
+async function salesRingRatingVisits(from,to){
+ const end=to||salesDay(new Date().toISOString()),start=from||'2020-01-01';
+ const dates=[];let d=new Date(start+'T12:00:00Z'),last=new Date(end+'T12:00:00Z');
+ if(!Number.isFinite(d.getTime())||!Number.isFinite(last.getTime()))return [];
+ while(d<=last&&dates.length<3660){dates.push(d.toISOString().slice(0,10));d.setUTCDate(d.getUTCDate()+1)}
+ const all=[];
+ for(let i=0;i<dates.length;i+=10){
+  const batch=await Promise.all(dates.slice(i,i+10).map(async day=>{
+   const res=await sb.rpc('staff_get_ring_rating_results_by_date',{p_play_date:day});
+   if(res.error)throw new Error('リングRating履歴('+day+'): '+res.error.message);
+   return res.data||[];
+  }));
+  for(const rows of batch)all.push(...rows);
+ }
+ return all;
+}
 async function loadSalesAnalytics(){
  const h=document.getElementById('salesAnalysisResult');if(!h||!sb)return;
  h.innerHTML='<div class="card muted">分析データを集計中…</div>';
@@ -253,12 +269,13 @@ async function loadSalesAnalytics(){
  if(from&&to&&from>to){h.innerHTML='<div class="card err">開始日が終了日より後になっています。</div>';return}
  const inPeriod=d=>d&&(!from||d>=from)&&(!to||d<=to);
  try{
-  const [members,tabs,sessions,results,tours]=await Promise.all([
+  const [members,tabs,sessions,results,tours,ringRatings]=await Promise.all([
    salesFetchAll('members','id,member_number,display_name,nickname'),
    salesFetchAll('customer_tabs','id,member_id,opened_at,closed_at,status'),
    salesFetchAll('ring_sessions','id,member_id,tab_id'),
    salesFetchAll('poker_rating_results','member_id,tournament_id'),
-   salesFetchAll('tournaments','id,event_date')
+   salesFetchAll('tournaments','id,event_date'),
+   salesRingRatingVisits(from,to)
   ]);
   const paid=tabs.filter(t=>t.status==='paid'&&inPeriod(salesDay(t.closed_at)));
   const ids=paid.map(t=>t.id);
@@ -280,6 +297,7 @@ async function loadSalesAnalytics(){
   for(const t of sessions){const linked=tabById[String(t.tab_id)];if(linked)visit(t.member_id||linked.member_id,salesDay(linked.opened_at));}
   const tourDates=Object.fromEntries(tours.map(t=>[t.id,t.event_date]));
   for(const t of results)visit(t.member_id,tourDates[t.tournament_id]);
+  for(const t of ringRatings)visit(t.member_id,String(t.play_date).slice(0,10));
   let gross=0;
   for(const t of paid){
    const amount=byTab[t.id]||0;gross+=amount;
@@ -294,6 +312,7 @@ async function loadSalesAnalytics(){
   for(const t of tabs){const d=salesDay(t.opened_at);if(t.member_id&&d){const prev=allVisitDates.get(t.member_id);if(!prev||d<prev)allVisitDates.set(t.member_id,d)}}
   for(const t of sessions){const linked=tabById[String(t.tab_id)];if(linked){const d=salesDay(linked.opened_at),mid=t.member_id||linked.member_id;if(mid&&d){const prev=allVisitDates.get(mid);if(!prev||d<prev)allVisitDates.set(mid,d)}}}
   for(const t of results){const d=tourDates[t.tournament_id];if(t.member_id&&d){const prev=allVisitDates.get(t.member_id);if(!prev||d<prev)allVisitDates.set(t.member_id,d)}}
+  for(const t of ringRatings){const d=String(t.play_date).slice(0,10);if(t.member_id&&d){const prev=allVisitDates.get(t.member_id);if(!prev||d<prev)allVisitDates.set(t.member_id,d)}}
   for(const [date,d] of dayRows){
    const w=weekly[new Date(date+'T12:00:00Z').getUTCDay()];
    w.visits+=d.visitors.size;w.sales+=d.sales;w.dates++;
@@ -310,7 +329,7 @@ async function loadSalesAnalytics(){
   ].map(([k,v])=>'<div class="card"><div class="muted">'+k+'</div><h2 class="gold">'+v+'</h2></div>').join('')+'</div></div>'+
   '<div class="card"><h3>📅 曜日別の来店状況</h3><p class="muted">「実人数」は期間中その曜日に来た異なるお客様の数。「来店回数」は同じお客様の複数日来店も含みます。曜日を押すと会員別の内訳を確認できます。</p><div style="overflow:auto"><table style="width:100%;min-width:690px;text-align:right;border-collapse:separate;border-spacing:0 9px"><thead><tr><th style="text-align:left">曜日</th><th>来店実人数</th><th>来店回数合計</th><th>1人平均</th><th>初回来店</th><th>既存客</th><th>売上</th><th>日平均来店</th></tr></thead><tbody>'+weekly.map((w,i)=>'<tr style="background:#211c13"><td style="text-align:left;padding:13px 9px"><button class="btn2" style="font-size:15px;font-weight:900" onclick="salesToggleWeek('+i+')">'+w.name+'曜 ▾</button></td><td><b class="gold">'+num(w.people.size)+'人</b></td><td><b>'+num(w.visits)+'回</b></td><td>'+(w.people.size?(w.visits/w.people.size).toFixed(1):'—')+'回</td><td>'+w.newCount+'人</td><td>'+w.repeatCount+'人</td><td>'+yen(w.sales)+'</td><td>'+(w.dates?(w.visits/w.dates).toFixed(1):'—')+'人</td></tr><tr id="salesWeekDetail'+i+'" style="display:none"><td colspan="8" style="padding:10px;background:#141414"><b class="gold">'+w.name+'曜日に来たお客様</b><div style="overflow:auto;margin-top:10px"><table style="width:100%;min-width:480px"><thead><tr><th style="text-align:left">会員名</th><th>来店回数</th><th style="text-align:left">来店日</th></tr></thead><tbody>'+([...w.people.entries()].sort((a,b)=>b[1].length-a[1].length).map(([mid,dates])=>{const p=people[mid]||{};return '<tr><td style="text-align:left;padding:8px">'+esc(p.display_name||p.nickname||'会員')+' #'+esc(String(p.member_number||''))+'</td><td style="text-align:center">'+dates.length+'回</td><td style="text-align:left">'+dates.map(d=>esc(d.slice(5))).join('、')+'</td></tr>'}).join('')||'<tr><td colspan="3">来店記録なし</td></tr>')+'</tbody></table></div></td></tr>').join('')+'</tbody></table></div><p class="muted">初回来店＝取得できた全記録の最初の来店日が対象期間のその曜日にあるお客様。既存客＝それ以前にも来店記録があるお客様。日平均は記録がある日のみで算出。</p></div>'+
   '<div class="card"><h3>👥 顧客別</h3><input id="salesMemberSearch" placeholder="会員名・会員番号で検索" oninput="salesFilterMembers()" style="width:100%;margin-bottom:12px"><div style="overflow:auto"><table style="width:100%;min-width:560px;text-align:right"><thead><tr><th style="text-align:left">会員</th><th>来店回数</th><th>売上</th><th>会計件数</th><th>最終来店</th></tr></thead><tbody id="salesMemberRows">'+active.map(p=>'<tr data-search="'+esc(String(p.display_name||p.nickname||'')+' '+String(p.member_number||''))+'"><td style="text-align:left">'+esc(p.display_name||p.nickname||'会員')+' #'+esc(String(p.member_number||''))+'</td><td>'+p.days.size+'</td><td>'+yen(p.sales)+'</td><td>'+p.bills+'</td><td>'+esc(p.last||'—')+'</td></tr>').join('')+'</tbody></table></div></div>'+
-  '<p class="muted">※ 来店判定にはRating結果に登録済みの大会のみ含まれます。未登録の大会参加者や伝票未作成の来店は集計できません。売上は現金収入ではなく伝票合計です。</p>';
+  '<p class="muted">※ リングはRating入力履歴を含めて集計しています。トーナメントはRating結果に登録済みの大会のみ含まれます。未登録の大会参加者や伝票未作成の来店は集計できません。売上は現金収入ではなく伝票合計です。</p>';
  }catch(e){console.error(e);h.innerHTML='<div class="card err">分析データを取得できません：'+esc(e.message||String(e))+'</div>'}
 }
 function salesToggleWeek(i){const row=document.getElementById('salesWeekDetail'+i);if(row)row.style.display=row.style.display==='none'?'table-row':'none'}
