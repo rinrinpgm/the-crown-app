@@ -31,11 +31,30 @@
 <div id="myMember" class="hidden myCrown">
 <div class="memberHero"><div class="memberGlow"></div><div class="gold memberEyebrow">THE CROWN MEMBER</div><h2 id="myName">MEMBER</h2><div id="myMemberNo" class="memberNo"></div><div class="memberQrFrame"><div id="myQr" class="memberQr"></div></div><div class="qrHint">このQRはあなた専用の会員証です</div><div id="deviceSaveArea" style="margin-top:14px"></div></div>
 <div class="coinCard"><div><small>CROWN COIN</small><div class="coinCaption">現在の保有残高</div><button class="miniBtn" style="margin-top:10px" onclick="toggleMyCoinHistory()">詳細・履歴を見る</button></div><div id="myCoin" class="coinBalance">0 cc</div></div><div id="myCoinHistory" class="historyCard hidden" style="margin-top:8px"><div class="row"><div><b>Crown coin 履歴</b><div class="muted">最新の増減履歴</div></div><button class="miniBtn" onclick="loadMyCoinHistory()">更新</button></div><div id="myCoinHistoryList" class="sectionSep"><div class="muted">読み込み中...</div></div></div>
-<div class="card" id="dailyGachaCard" style="border:1px solid #9b7834;background:linear-gradient(135deg,#251b0d,#111)">
+<style>
+#gachaMachine{position:relative;margin:18px 0;padding:19px 12px 17px;border:2px solid #b99039;border-radius:20px;background:radial-gradient(ellipse at 50% 0%,#4c3518 0%,#1b140c 58%,#100d09 100%);box-shadow:inset 0 0 24px #000,0 0 18px #b58d3330;overflow:hidden;text-align:center}
+#gachaMachine .gachaTitle{font-family:Georgia,serif;letter-spacing:.25em;color:#e9c46d;font-size:11px;margin-bottom:12px}
+#gachaReels{display:flex;justify-content:center;gap:9px}
+.gachaReel{display:flex;align-items:center;justify-content:center;width:27%;max-width:110px;aspect-ratio:1/1;border:3px solid #d5a94b;border-radius:13px;background:linear-gradient(140deg,#fff9e5,#fff 40%,#e9d9af);color:#8c1c20;font-size:clamp(36px,9vw,65px);font-weight:900;box-shadow:inset 0 4px 13px #b99a6a88,0 4px 12px #0008;transition:transform .12s}
+#gachaMachine.spinning .gachaReel{animation:gachaWobble .15s linear infinite}
+#gachaMachine.win{animation:gachaWinGlow .65s ease-in-out 3}
+#gachaMachine.win:before{content:'✦ ✧ ✦ ✧ ✦';position:absolute;left:0;right:0;top:4px;color:#ffe7a0;font-size:19px;animation:gachaSparkle .5s ease-in-out 5;pointer-events:none}
+@keyframes gachaWobble{0%{transform:translateY(-3px)}50%{transform:translateY(3px)}100%{transform:translateY(-3px)}}
+@keyframes gachaWinGlow{50%{box-shadow:0 0 34px #f6c452,inset 0 0 25px #b58545;border-color:#ffeaa4}}
+@keyframes gachaSparkle{50%{opacity:.3;transform:scale(1.2)}}
+#gachaMachine .gachaMachineCaption{margin-top:11px;color:#bfa76d;font-size:11px;letter-spacing:.15em}
+#gachaTicket{margin:15px 0;padding:18px 12px;border:2px dashed #edc775;border-radius:13px;background:linear-gradient(125deg,#382711,#201709);text-align:center;box-shadow:0 0 18px #b78c3429}
+#gachaTicket .ticketHeading{font-family:Georgia,serif;letter-spacing:.19em;color:#f0c971;font-size:13px}
+#gachaTicket .ticketPrize{font-size:clamp(20px,5vw,27px);font-weight:900;color:#fff3ce;margin:13px 0;line-height:1.45;overflow-wrap:anywhere}
+#gachaTicket .ticketFoot{font-size:12px;color:#d7bc7b}
+#dailyGachaBtn{display:block;width:100%;font-size:18px;padding:15px;margin-top:14px;border:1px solid #f0d084;background:linear-gradient(125deg,#b48832,#f5d783,#bd903b);color:#221603;font-weight:900;border-radius:12px}
+#dailyGachaBtn:disabled{opacity:.48}
+@media(prefers-reduced-motion:reduce){#gachaMachine.spinning .gachaReel,#gachaMachine.win,#gachaMachine.win:before{animation:none}}
+</style><div class="card" id="dailyGachaCard" style="border:1px solid #9b7834;background:linear-gradient(135deg,#251b0d,#111)">
 <div class="gold" style="font-size:12px;letter-spacing:.15em">THE CROWN DAILY GACHA</div>
 <h2 style="margin:9px 0">🎰 本日のガチャ</h2>
 <p class="muted">毎日1回チャレンジ！ 5:00〜翌4:59が1営業日です。景品は当日限り有効。</p>
-<div id="dailyGachaResult" style="font-size:17px;font-weight:700;margin:14px 0">読み込み中…</div>
+<div id="gachaMachine"><div class="gachaTitle">✦ CROWN LUCKY SLOT ✦</div><div id="gachaReels"><div class="gachaReel">7</div><div class="gachaReel">♛</div><div class="gachaReel">7</div></div><div class="gachaMachineCaption" id="gachaMachineCaption">TODAY'S LUCK</div></div><div id="dailyGachaResult" style="font-size:17px;font-weight:700;margin:14px 0">読み込み中…</div><div id="gachaTicket" hidden><div class="ticketHeading">✦ THE CROWN WINNING TICKET ✦</div><div class="ticketPrize" id="gachaTicketPrize"></div><div class="ticketFoot" id="gachaTicketStatus">当選おめでとうございます</div></div>
 <button class="btn2" id="dailyGachaBtn" onclick="drawDailyGacha()" disabled>ガチャを回す</button>
 <div id="dailyGachaExpiry" class="muted" style="margin-top:10px"></div></div><div id="myBillArea" class="myBlock"></div><div class="mySectionHead"><div><small>BENEFITS</small><h2>COUPON</h2></div></div><div id="myCoupons" class="couponGrid"><div class="card muted">クーポンはありません。</div></div>
 <div class="mySectionHead"><div><small>HISTORY</small><h2>会計履歴</h2></div></div><div class="historyCard"><div class="row"><div><b>過去のお会計</b><div class="muted">会計済みの伝票を確認できます</div></div><button class="miniBtn" onclick="loadMyCheckoutHistory()">更新</button></div><div class="field compactField"><label>表示する月</label><input id="myHistoryMonth" type="month" onchange="loadMyCheckoutHistory()"></div><div id="myCheckoutHistory" class="sectionSep"><div class="muted">読み込み中...</div></div></div>
@@ -279,6 +298,29 @@ let dailyGachaConfirmedPrize=null;
 let currentGachaMemberToken='';
 function gachaToken(){return currentGachaMemberToken||new URLSearchParams(location.search).get('member')||localStorage.getItem('crown_member_token')||''}
 function gachaDeadline(){const d=new Date();const tokyo=new Date(d.toLocaleString('en-US',{timeZone:'Asia/Tokyo'}));if(tokyo.getHours()<5)tokyo.setDate(tokyo.getDate()-1);tokyo.setDate(tokyo.getDate()+1);tokyo.setHours(5,0,0,0);return tokyo}
+const gachaFaces=['7','♛','★','♦','♠','♣'];
+function gachaSleep(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
+function gachaTicketShow(row){
+ const ticket=document.getElementById('gachaTicket'),name=document.getElementById('gachaTicketPrize'),status=document.getElementById('gachaTicketStatus');
+ if(!ticket||!row)return;
+ name.textContent=row.prize_name;
+ status.textContent=row.used_at?'使用済み':'有効期限：'+new Date(row.expires_at).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+ ticket.hidden=false;
+}
+async function gachaPlayAnimation(){
+ const machine=document.getElementById('gachaMachine'),reels=[...document.querySelectorAll('#gachaReels .gachaReel')],caption=document.getElementById('gachaMachineCaption');
+ if(!machine||reels.length!==3)return;
+ machine.classList.remove('win');machine.classList.add('spinning');
+ caption.textContent='SPINNING...';
+ let running=true,stopped=0;
+ const timer=setInterval(()=>{reels.forEach((r,i)=>{if(i>=stopped)r.textContent=gachaFaces[Math.floor(Math.random()*gachaFaces.length)]})},70);
+ try{
+  await gachaSleep(850);stopped=1;reels[0].textContent='7';
+  await gachaSleep(550);stopped=2;reels[1].textContent='7';
+  await gachaSleep(600);stopped=3;reels[2].textContent='7';
+ }finally{running=false;clearInterval(timer);machine.classList.remove('spinning')}
+ machine.classList.add('win');caption.textContent='✦ JACKPOT ✦';
+}
 async function loadDailyGacha(){
  const result=document.getElementById('dailyGachaResult'),btn=document.getElementById('dailyGachaBtn'),expiry=document.getElementById('dailyGachaExpiry');
  if(!result||!btn)return;
@@ -295,12 +337,14 @@ async function loadDailyGacha(){
   const row=data?.[0];
   if(row){
    dailyGachaConfirmedPrize=row.prize_name;
-   result.textContent='🎁 '+row.prize_name;
+   gachaTicketShow(row);
+   result.textContent='🎁 本日の当選景品';
    expiry.textContent=(row.used_at?'使用済み ／ ':'本日当選済み ／ ')+'有効期限：'+new Date(row.expires_at).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
   }else if(dailyGachaConfirmedPrize){
    result.textContent='🎉 '+dailyGachaConfirmedPrize;
    expiry.textContent='抽選結果を保存しました。履歴が反映されない場合はスタッフにお知らせください。';
   }else{
+   document.getElementById('gachaTicket').hidden=true;
    result.textContent='本日のガチャはまだ引いていません！';
    expiry.textContent='当選景品は翌朝4:59まで有効';
    btn.disabled=false;
@@ -318,14 +362,17 @@ async function drawDailyGacha(){
  const token=gachaToken();
  if(!token){result.textContent='会員情報が見つかりません。会員証からMY CROWNを開き直してください。';return}
  dailyGachaBusy=true;++dailyGachaRequestVersion;btn.disabled=true;result.textContent='🎰 抽選中…';
+ document.getElementById('gachaTicket').hidden=true;
  try{
   if(!sb&&!init())throw new Error('Supabaseに接続できません');
   const {data,error}=await sb.rpc('daily_gacha',{p_qr_token:token,p_draw:true});
   if(error)throw error;
   if(!data?.[0])throw new Error('抽選結果が返されませんでした');
   dailyGachaConfirmedPrize=data[0].prize_name;
-  result.textContent='🎉 '+data[0].prize_name;
-  expiry.textContent='当選しました！景品は翌朝4:59まで有効です。';
+  await gachaPlayAnimation();
+  gachaTicketShow(data[0]);
+  result.textContent='🎉 おめでとうございます！';
+  expiry.textContent='当選チケットをスタッフにお見せください。';
  }catch(e){
   console.error('Daily gacha draw failed',e);
   result.textContent='抽選エラー：'+(e?.message||String(e));
