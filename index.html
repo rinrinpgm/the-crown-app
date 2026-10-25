@@ -50,13 +50,25 @@
 #dailyGachaBtn{display:block;width:100%;font-size:18px;padding:15px;margin-top:14px;border:1px solid #f0d084;background:linear-gradient(125deg,#b48832,#f5d783,#bd903b);color:#221603;font-weight:900;border-radius:12px}
 #dailyGachaBtn:disabled{opacity:.48}
 @media(prefers-reduced-motion:reduce){#gachaMachine.spinning .gachaReel,#gachaMachine.win,#gachaMachine.win:before{animation:none}}
+</style><style>
+#gachaRedeemBtn{display:block;margin:14px auto 0;padding:12px 22px;border-radius:12px;border:1px solid #f1cf7b;background:linear-gradient(120deg,#d9a94c,#ffe6a0);color:#241706;font-weight:900;font-size:16px;cursor:pointer}
+#gachaRedeemBtn:disabled{opacity:.45;cursor:default}
+#gachaRedeemOverlay[hidden],#gachaRedeemBtn[hidden]{display:none!important}
+#gachaRedeemOverlay{position:fixed;inset:0;z-index:99999;background:#000d;display:flex;align-items:center;justify-content:center;padding:20px}
+#gachaRedeemDialog{background:linear-gradient(155deg,#342713,#111);border:2px solid #dfb75c;border-radius:22px;max-width:430px;width:100%;padding:25px 20px;text-align:center;box-shadow:0 0 45px #000}
+#gachaRedeemDialog h2{color:#f7d47e;margin:8px 0 18px}
+#gachaRedeemDialog .gachaRedeemPrize{font-size:21px;font-weight:900;color:#fff3cc;line-height:1.5;margin:15px 0}
+#gachaRedeemDialog .gachaRedeemNotice{font-size:16px;line-height:1.7;margin:18px 0}
+#gachaRedeemDialog button{width:100%;margin-top:10px;padding:14px;border-radius:11px;font-size:16px;font-weight:900;cursor:pointer}
+#gachaRedeemConfirm{background:#e6bb63;border:0;color:#201509}
+#gachaRedeemCancel{background:#24211b;border:1px solid #826c40;color:#eee}
 </style><div class="card" id="dailyGachaCard" style="border:1px solid #9b7834;background:linear-gradient(135deg,#251b0d,#111)">
 <div class="gold" style="font-size:12px;letter-spacing:.15em">THE CROWN DAILY GACHA</div>
 <h2 style="margin:9px 0">🎰 本日のガチャ</h2>
 <p class="muted">毎日1回チャレンジ！ 5:00〜翌4:59が1営業日です。景品は当日限り有効。</p>
-<div id="gachaMachine"><div class="gachaTitle">✦ CROWN LUCKY SLOT ✦</div><div id="gachaReels"><div class="gachaReel">♠</div><div class="gachaReel">♦</div><div class="gachaReel">♛</div></div><div class="gachaMachineCaption" id="gachaMachineCaption">TODAY'S LUCK</div></div><div id="dailyGachaResult" style="font-size:17px;font-weight:700;margin:14px 0">読み込み中…</div><div id="gachaTicket" hidden><div class="ticketHeading">✦ THE CROWN WINNING TICKET ✦</div><div class="ticketPrize" id="gachaTicketPrize"></div><div class="ticketFoot" id="gachaTicketStatus">当選おめでとうございます</div></div>
+<div id="gachaMachine"><div class="gachaTitle">✦ CROWN LUCKY SLOT ✦</div><div id="gachaReels"><div class="gachaReel">♠</div><div class="gachaReel">♦</div><div class="gachaReel">♛</div></div><div class="gachaMachineCaption" id="gachaMachineCaption">TODAY'S LUCK</div></div><div id="dailyGachaResult" style="font-size:17px;font-weight:700;margin:14px 0">読み込み中…</div><div id="gachaTicket" hidden><div class="ticketHeading">✦ THE CROWN WINNING TICKET ✦</div><div class="ticketPrize" id="gachaTicketPrize"></div><div class="ticketFoot" id="gachaTicketStatus">当選おめでとうございます</div><button id="gachaRedeemBtn" onclick="openGachaRedeem()" hidden>🎟️ チケットを使用する</button></div>
 <button class="btn2" id="dailyGachaBtn" onclick="drawDailyGacha()" disabled>ガチャを回す</button>
-<div id="dailyGachaExpiry" class="muted" style="margin-top:10px"></div></div><div id="myBillArea" class="myBlock"></div><div class="mySectionHead"><div><small>BENEFITS</small><h2>COUPON</h2></div></div><div id="myCoupons" class="couponGrid"><div class="card muted">クーポンはありません。</div></div>
+<div id="dailyGachaExpiry" class="muted" style="margin-top:10px"></div></div><div id="gachaRedeemOverlay" hidden><div id="gachaRedeemDialog" role="dialog" aria-modal="true" aria-labelledby="gachaRedeemHeading"><h2 id="gachaRedeemHeading">🎟️ チケット使用確認</h2><div class="gachaRedeemPrize" id="gachaRedeemPrize"></div><p class="gachaRedeemNotice">スタッフにこの画面を見せて、<br><b style="color:#f5cf79">スタッフに「使用を確定する」を押してもらってください。</b></p><p class="muted">確定すると取り消しできません。</p><div id="gachaRedeemMessage" style="color:#ffb9a6"></div><button id="gachaRedeemConfirm" onclick="confirmGachaRedeem()">スタッフ確認・使用を確定する</button><button id="gachaRedeemCancel" onclick="closeGachaRedeem()">キャンセル</button></div></div><div id="myBillArea" class="myBlock"></div><div class="mySectionHead"><div><small>BENEFITS</small><h2>COUPON</h2></div></div><div id="myCoupons" class="couponGrid"><div class="card muted">クーポンはありません。</div></div>
 <div class="mySectionHead"><div><small>HISTORY</small><h2>会計履歴</h2></div></div><div class="historyCard"><div class="row"><div><b>過去のお会計</b><div class="muted">会計済みの伝票を確認できます</div></div><button class="miniBtn" onclick="loadMyCheckoutHistory()">更新</button></div><div class="field compactField"><label>表示する月</label><input id="myHistoryMonth" type="month" onchange="loadMyCheckoutHistory()"></div><div id="myCheckoutHistory" class="sectionSep"><div class="muted">読み込み中...</div></div></div>
 </div></section>
 </main><div id="tourModal" class="modal" onclick="if(event.target===this)closeTournament()"><div class="modalBox"><div class="modalHead"><div><div class="gold" style="font-size:12px;letter-spacing:.12em">TOURNAMENT</div><h2 id="tdName" style="margin:5px 0 0"></h2></div><button class="modalClose" onclick="closeTournament()">×</button></div><div id="tdBody"></div></div></div><nav class="nav"><button class="active" data-p="home" onclick="show('home')"><span class="ico">⌂</span>HOME</button><button data-p="tournament" onclick="show('tournament')"><span class="ico">♠</span>トーナメント</button><button data-p="ring" onclick="show('ring')"><span class="ico">♣</span>RING</button><button data-p="ranking" onclick="show('ranking')"><span class="ico">♛</span>ランキング</button><button data-p="my" onclick="show('my')"><span class="ico">♦</span>MY CROWN</button></nav></div>
@@ -295,6 +307,7 @@ function yen(v){return v===null||v===undefined||v===''?'—':'¥'+Number(v).toLo
 let dailyGachaBusy=false;
 let dailyGachaRequestVersion=0;
 let dailyGachaConfirmedPrize=null;
+let dailyGachaCurrentRow=null;
 let currentGachaMemberToken='';
 function gachaToken(){return currentGachaMemberToken||new URLSearchParams(location.search).get('member')||localStorage.getItem('crown_member_token')||''}
 function gachaDeadline(){const d=new Date();const tokyo=new Date(d.toLocaleString('en-US',{timeZone:'Asia/Tokyo'}));if(tokyo.getHours()<5)tokyo.setDate(tokyo.getDate()-1);tokyo.setDate(tokyo.getDate()+1);tokyo.setHours(5,0,0,0);return tokyo}
@@ -305,11 +318,36 @@ function gachaPrizeWeight(name){const p=gachaPrizeWeights?.find(x=>x.name===name
 function gachaRarity(weight){if(weight===null)return {rank:'WIN',color:'#e7c46e',glow:'rgba(235,193,91,.5)',duration:2};if(weight<=5)return {rank:'LEGEND',color:'#ffdc72',glow:'rgba(255,205,71,.9)',duration:5};if(weight<=15)return {rank:'SUPER RARE',color:'#ce9aff',glow:'rgba(177,89,255,.8)',duration:4};if(weight<=20)return {rank:'RARE',color:'#8acaff',glow:'rgba(72,164,255,.7)',duration:3};return {rank:'NORMAL',color:'#dfd4bc',glow:'rgba(230,217,180,.4)',duration:1}}
 function gachaSleep(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
 function gachaTicketShow(row){
+ dailyGachaCurrentRow=row;
+ const useBtn=document.getElementById('gachaRedeemBtn');
+ if(useBtn){useBtn.hidden=!!row.used_at||new Date(row.expires_at)<=new Date();useBtn.disabled=!!row.used_at||new Date(row.expires_at)<=new Date()}
  const ticket=document.getElementById('gachaTicket'),name=document.getElementById('gachaTicketPrize'),status=document.getElementById('gachaTicketStatus');
  if(!ticket||!row)return;
  name.textContent=row.prize_name;
- status.textContent=row.used_at?'使用済み':'有効期限：'+new Date(row.expires_at).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+ status.textContent=row.used_at?'🔒 使用済み':new Date(row.expires_at)<=new Date()?'⌛ 有効期限切れ':'有効期限：'+new Date(row.expires_at).toLocaleString('ja-JP',{timeZone:'Asia/Tokyo',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
  ticket.hidden=false;
+}
+function openGachaRedeem(){
+ const row=dailyGachaCurrentRow;
+ if(!row||row.used_at||new Date(row.expires_at)<=new Date()){alert('このチケットは使用できません。');return}
+ document.getElementById('gachaRedeemPrize').textContent=row.prize_name;
+ document.getElementById('gachaRedeemMessage').textContent='';
+ document.getElementById('gachaRedeemConfirm').disabled=false;
+ document.getElementById('gachaRedeemOverlay').hidden=false;
+}
+function closeGachaRedeem(){document.getElementById('gachaRedeemOverlay').hidden=true}
+async function confirmGachaRedeem(){
+ const btn=document.getElementById('gachaRedeemConfirm'),msg=document.getElementById('gachaRedeemMessage');
+ if(btn.disabled)return;
+ btn.disabled=true;msg.textContent='使用処理中…';
+ try{
+  const {data,error}=await sb.rpc('gacha_customer_redeem',{p_qr_token:gachaToken()});
+  if(error)throw error;
+  if(!data)throw new Error('使用処理を確認できませんでした');
+  closeGachaRedeem();
+  await loadDailyGacha();
+  alert('チケットを使用済みにしました。');
+ }catch(e){msg.textContent='使用できません：'+(e?.message||String(e));btn.disabled=false}
 }
 async function gachaPlayAnimation(prizeName){
  const machine=document.getElementById('gachaMachine'),reels=[...document.querySelectorAll('#gachaReels .gachaReel')],caption=document.getElementById('gachaMachineCaption');
