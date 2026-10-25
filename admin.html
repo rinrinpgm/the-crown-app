@@ -9,7 +9,7 @@
 <section id="admin" class="hidden"><div class="row"><h2>店舗管理</h2><button class="btn2" onclick="logout()">ログアウト</button></div><div class="tabs"><button class="btn2" onclick="showTab('ring')">RING</button><button class="btn2" onclick="showTab('tour')">トーナメント</button><button class="btn2" onclick="showTab('rating')">Rating管理</button><button class="btn2" onclick="showTab('home')">HOME管理</button><button class="btn2" onclick="showTab('member')">会員管理</button><button class="btn2" onclick="showTab('openBills')">未会計伝票</button><button class="btn2" onclick="showTab('history')">会計履歴</button><button class="btn2" onclick="showTab('analytics')">📊 売上分析</button><button class="btn2" onclick="showTab('tickets')">割引・チケット管理</button><button class="btn2" onclick="showTab('gacha')">🎰 ガチャ管理</button></div>
 <div id="gachaTab" class="hidden">
 <div class="card"><h3>🎰 デイリーガチャ 景品設定</h3><p class="muted">景品名・当選確率・有効/無効を編集できます。確率は有効な景品の合計が100%になるよう設定してください。無効化した景品の当選履歴は残ります。</p>
-<div id="gachaPrizeRows"></div><div class="row"><button class="btn2" onclick="addGachaPrize()">＋ 景品を追加</button><b id="gachaTotal">合計 0%</b><button class="btn" onclick="saveGachaPrizes()">変更を保存</button></div><div id="gachaMsg" class="muted" style="margin-top:10px"></div></div>
+<div class="card" style="padding:14px;margin:12px 0"><h3>👑 ランク別当選確率</h3><p class="muted">ランクごとに8景品の確率を設定できます。各ランクの合計を100%にして保存してください。抽選は獲得済み最高ランクを使用します。</p><div class="row" style="flex-wrap:wrap;gap:6px" id="gachaRankTabs"></div><div id="gachaRankRows"></div><div class="row"><b id="gachaRankTotal">合計 —</b><button class="btn" onclick="saveGachaRankWeights()">ランク別確率を保存</button></div><div id="gachaRankMsg" class="muted"></div></div><div id="gachaPrizeRows"></div><div class="row"><button class="btn2" onclick="addGachaPrize()">＋ 景品を追加</button><b id="gachaTotal">合計 0%</b><button class="btn" onclick="saveGachaPrizes()">変更を保存</button></div><div id="gachaMsg" class="muted" style="margin-top:10px"></div></div>
 <div class="card"><div class="row"><h3>当選履歴・使用済み処理</h3><button class="btn2" onclick="loadGachaDraws()">更新</button></div><div id="gachaDrawRows" class="muted">読み込み中…</div></div></div>
 <div id="ringTab"><div class="card"><div class="row"><div><h3>クイックOPEN</h3><p class="muted">ワンタップで卓を作成</p></div><button class="btn2" onclick="loadRing()">更新</button></div><div class="row"><button class="btn quickBtn" onclick="quick('NLH','50/100',10,5)">50/100 NLH</button><button class="btn quickBtn" onclick="quick('NLH','100/200',10,3)">100/200 NLH</button><button class="btn quickBtn" onclick="quick('MIX','',10,3)">MIX</button></div><div id="msg"></div></div><div id="rings"></div></div>
 <div id="ratingTab" class="hidden">
@@ -712,12 +712,49 @@ function closeMember(){document.getElementById('memberDetail').classList.add('hi
 document.getElementById('loginBtn')?.addEventListener('click',login);
 document.getElementById('pw')?.addEventListener('keydown',e=>{if(e.key==='Enter')login()});document.getElementById('saveNewPwBtn')?.addEventListener('click',saveNewPassword);document.getElementById('newPwConfirm')?.addEventListener('keydown',e=>{if(e.key==='Enter')saveNewPassword()});
 
+const gachaRankNames=['BRONZE','SILVER','GOLD','PLATINUM','DIAMOND','CROWN'];
+let gachaRankLevel=0,gachaRankWeights={},gachaRankReady=false;
+async function loadGachaRankWeights(){
+ const {data,error}=await sb.rpc('gacha_rank_weights_staff');
+ const msg=document.getElementById('gachaRankMsg');
+ if(error){gachaRankReady=false;msg.textContent='ランク別SQL未設定：SETUP_RANK_GACHA.sqlを実行してください。';return}
+ gachaRankWeights={};
+ for(const r of data||[])gachaRankWeights[r.prize_id+':'+r.rank_level]=Number(r.weight);
+ gachaRankReady=true;msg.textContent='';renderGachaRankWeights();
+}
+function renderGachaRankWeights(){
+ const tabs=document.getElementById('gachaRankTabs'),rows=document.getElementById('gachaRankRows');
+ if(!tabs||!rows||!gachaRankReady)return;
+ tabs.innerHTML=gachaRankNames.map((n,i)=>'<button class="btn2" style="'+(i===gachaRankLevel?'border:2px solid #ffcc62;background:#42320d':'')+'" onclick="gachaRankLevel='+i+';renderGachaRankWeights()">'+n+'</button>').join('');
+ rows.innerHTML=gachaPrizeData.filter(p=>p.active).map(p=>{
+ const key=p.id+':'+gachaRankLevel,v=gachaRankWeights[key]??Number(p.weight);
+ return '<div class="row" style="padding:8px 0;border-bottom:1px solid #393126;gap:12px"><span style="flex:1">'+esc(p.name)+'</span><input type="number" min="0" max="100" step="1" style="width:95px" value="'+v+'" data-rank-prize="'+p.id+'" oninput="gachaRankWeights[this.dataset.rankPrize+\':\'+gachaRankLevel]=Number(this.value);updateGachaRankTotal()"><span>%</span></div>';
+ }).join('');
+ updateGachaRankTotal();
+}
+function updateGachaRankTotal(){
+ const total=gachaPrizeData.filter(p=>p.active).reduce((sum,p)=>sum+Number(gachaRankWeights[p.id+':'+gachaRankLevel]??p.weight),0);
+ const el=document.getElementById('gachaRankTotal');if(el){el.textContent=gachaRankNames[gachaRankLevel]+' 合計 '+total+'%';el.style.color=total===100?'#8ce5a3':'#ff8181'}
+}
+async function saveGachaRankWeights(){
+ const msg=document.getElementById('gachaRankMsg');if(!gachaRankReady){msg.textContent='SQL設定を確認してください';return}
+ const active=gachaPrizeData.filter(p=>p.active);
+ for(let level=0;level<6;level++){
+ const total=active.reduce((sum,p)=>sum+Number(gachaRankWeights[p.id+':'+level]??p.weight),0);
+ if(total!==100){msg.textContent=gachaRankNames[level]+' の合計が'+total+'%です。100%にしてください。';return}
+ }
+ const items=gachaPrizeData.flatMap(p=>gachaRankNames.map((_,level)=>({prize_id:p.id,rank_level:level,weight:Number(gachaRankWeights[p.id+':'+level]??p.weight)}))).filter(x=>x.prize_id);
+ msg.textContent='保存中…';
+ const {error}=await sb.rpc('gacha_rank_weights_save',{p_items:items});
+ msg.textContent=error?'保存失敗：'+error.message:'6ランクの確率を保存しました。次の抽選から適用されます。';
+ if(!error)await loadGachaRankWeights();
+}
 let gachaPrizeData=[];
 async function loadGachaPrizes(){
  const el=document.getElementById('gachaPrizeRows');el.textContent='読み込み中…';
  const {data,error}=await sb.rpc('gacha_staff_prizes');
  if(error){el.textContent='SQL設定を確認してください：'+error.message;return}
- gachaPrizeData=(data||[]).map(x=>({...x}));renderGachaPrizes();
+ gachaPrizeData=(data||[]).map(x=>({...x}));renderGachaPrizes();await loadGachaRankWeights();
 }
 function renderGachaPrizes(){
  const el=document.getElementById('gachaPrizeRows');
