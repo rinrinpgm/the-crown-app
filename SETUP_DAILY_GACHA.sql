@@ -97,3 +97,67 @@ grant execute on function public.daily_gacha(text,boolean) to anon,authenticated
 -- Staff redemption (using SQL Editor until admin UI is added):
 -- update public.daily_gacha_draws set used_at=now()
 -- where id='DRAW_UUID' and used_at is null and expires_at>now();
+
+-- Staff-only management RPCs. The staff table is checked against the authenticated user.
+create or replace function public.gacha_staff_check()
+returns void language plpgsql security definer set search_path=public as $$
+begin
+ if auth.uid() is null or not exists (
+  select 1 from public.staff s where s.auth_user_id=auth.uid() and s.active=true and s.role in ('admin','staff')
+ ) then raise exception 'Staff authorization required'; end if;
+end $$;
+revoke all on function public.gacha_staff_check() from public;
+create or replace function public.gacha_manage_prizes(p_items jsonb)
+returns void language plpgsql security definer set search_path=public as $$
+declare item jsonb; ids bigint[] := '{}'::bigint[]; v_id bigint; v_name text; v_weight integer; v_active boolean;
+begin
+ perform public.gacha_staff_check();
+ if jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items)>100 then raise exception 'Invalid prize list'; end if;
+ for item in select value from jsonb_array_elements(p_items) loop
+  v_name:=trim(item->>'name');v_weight:=(item->>'weight')::integer;v_active:=coalesce((item->>'active')::boolean,true);
+  if v_name is null or length(v_name)<1 or length(v_name)>120 or v_weight<0 or v_weight>100 then raise exception 'Invalid prize'; end if;
+  v_id:=nullif(item->>'id','')::bigint;
+  if v_id is null then
+   insert into public.daily_gacha_prizes(name,weight,active) values(v_name,v_weight,v_active) returning id into v_id;
+  else
+   update public.daily_gacha_prizes set name=v_name,weight=v_weight,active=v_active where id=v_id;
+   if not found then raise exception 'Prize not found'; end if;
+  end if;
+  ids:=array_append(ids,v_id);
+ end loop;
+ update public.daily_gacha_prizes set active=false where not(id=any(ids));
+ if (select coalesce(sum(weight),0) from public.daily_gacha_prizes where active)<>100 then raise exception 'Active prize probabilities must total 100%%'; end if;
+end $$;
+revoke all on function public.gacha_manage_prizes(jsonb) from public;
+grant execute on function public.gacha_manage_prizes(jsonb) to authenticated;
+create or replace function public.gacha_staff_prizes()
+returns table(id bigint,name text,weight integer,active boolean)
+language plpgsql security definer set search_path=public as $$
+begin
+ perform public.gacha_staff_check();
+ return query select p.id,p.name,p.weight,p.active from public.daily_gacha_prizes p order by p.active desc,p.id;
+end $$;
+revoke all on function public.gacha_staff_prizes() from public;
+grant execute on function public.gacha_staff_prizes() to authenticated;
+create or replace function public.gacha_staff_draws()
+returns table(id uuid,member_name text,member_number text,prize_name text,drawn_at timestamptz,expires_at timestamptz,used_at timestamptz)
+language plpgsql security definer set search_path=public as $$
+begin
+ perform public.gacha_staff_check();
+ return query select d.id,coalesce(nullif(m.nickname,''),nullif(m.display_name,''),'会員')::text,
+ coalesce(m.member_number::text,'')::text,d.prize_name,d.drawn_at,d.expires_at,d.used_at
+ from public.daily_gacha_draws d join public.members m on m.id=d.member_id
+ order by d.drawn_at desc limit 200;
+end $$;
+revoke all on function public.gacha_staff_draws() from public;
+grant execute on function public.gacha_staff_draws() to authenticated;
+create or replace function public.gacha_redeem(p_draw_id uuid)
+returns void language plpgsql security definer set search_path=public as $$
+begin
+ perform public.gacha_staff_check();
+ update public.daily_gacha_draws set used_at=now()
+ where id=p_draw_id and used_at is null and expires_at>now();
+ if not found then raise exception 'Already used, expired, or not found'; end if;
+end $$;
+revoke all on function public.gacha_redeem(uuid) from public;
+grant execute on function public.gacha_redeem(uuid) to authenticated;
