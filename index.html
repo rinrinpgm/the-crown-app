@@ -430,7 +430,7 @@ function renderTourView(){
  html+='<div class="crownCalDay '+(date===today?'crownCalToday':'')+'"><b>'+day+'</b>';
  for(const item of map[date]||[]){
  const x=item.x;
- html+='<button class="crownCalEvent" onclick="openTournament('+item.i+')">'+(x.image_url?'<img loading="lazy" src="'+esc(x.image_url)+'" alt="">':'')+'<span>'+esc((x.start_time||'').slice(0,5))+' '+esc(x.name)+'</span></button>';
+ html+='<button class="crownCalEvent" onclick="openTournament('+item.i+')">'+(x.image_url?'<img loading="lazy" src="'+esc(x.image_url)+'" alt="'+esc(x.name)+'">':'<span>'+esc((x.start_time||'').slice(0,5))+' '+esc(x.name)+'</span>')</button>';
  }
  html+='</div>';
  }
