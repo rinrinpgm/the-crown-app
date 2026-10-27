@@ -787,18 +787,10 @@ function gachaAutoDistribute(changedIndex){
   else active.forEach((x,i)=>x.p.weight=weights[i]);
  }
  for(const p of gachaPrizeData)if(!p.active)p.weight=0;
- for(let level=0;level<6;level++){
-  const factors=active.map(({p})=>{
-   const idx=gachaRankPresetNames.indexOf(p.name);
-   return idx<0?1:gachaRankPresets[idx][level]/gachaRankPresets[idx][0];
-  });
-  const allocated=gachaNormalize(active.map(({p},i)=>Number(p.weight)*factors[i]));
-  active.forEach(({p},i)=>{if(p.id!=null)gachaRankWeights[p.id+':'+level]=allocated[i]});
- }
  renderGachaPrizes();
  if(gachaRankReady)renderGachaRankWeights();
  const msg=document.getElementById('gachaMsg');
- if(msg)msg.textContent='基本確率と6ランクの確率を自動調整しました。「変更を保存」で両方保存します。';
+ if(msg)msg.textContent='基本確率を100%に調整しました。ランク別確率は変更していません。';
 }
 function gachaDefaultChanged(i,v){gachaPrizeData[i].weight=v;gachaAutoDistribute(i)}
 function gachaActiveChanged(i,v){gachaPrizeData[i].active=v;gachaAutoDistribute()}
@@ -828,20 +820,7 @@ async function saveGachaPrizes(){
  msg.textContent='保存中…';
  const {error}=await sb.rpc('gacha_manage_prizes',{p_items:gachaPrizeData.map(p=>({id:p.id||null,name:p.name,weight:Number(p.weight),active:!!p.active}))});
  if(error){msg.textContent='基本確率の保存失敗：'+error.message;return}
- const rankWeights={...gachaRankWeights};
- const {data:fresh,error:readError}=await sb.rpc('gacha_staff_prizes');
- if(readError){msg.textContent='基本確率を保存しましたがランク別の取得に失敗：'+readError.message;return}
- gachaPrizeData=(fresh||[]).map(x=>({...x}));
- for(let level=0;level<6;level++){
-  const active=gachaPrizeData.filter(p=>p.active);
-  const factors=active.map(p=>{const idx=gachaRankPresetNames.indexOf(p.name);return idx<0?1:gachaRankPresets[idx][level]/gachaRankPresets[idx][0]});
-  const alloc=gachaNormalize(active.map((p,i)=>p.weight*factors[i]));
-  active.forEach((p,i)=>rankWeights[p.id+':'+level]=alloc[i]);
- }
- const items=gachaPrizeData.flatMap(p=>gachaRankNames.map((_,level)=>({prize_id:p.id,rank_level:level,weight:p.active?Number(rankWeights[p.id+':'+level]??0):0})));
- const {error:rankError}=await sb.rpc('gacha_rank_weights_save',{p_items:items});
- if(rankError){msg.textContent='基本確率は保存しましたがランク別保存に失敗：'+rankError.message;return}
- msg.textContent='基本確率と6ランクの確率を保存しました。';await loadGachaPrizes();
+ msg.textContent='基本確率を保存しました。ランク別の手動設定は変更していません。';await loadGachaPrizes();
 }
 async function loadGachaDraws(){
  const el=document.getElementById('gachaDrawRows');el.textContent='読み込み中…';
