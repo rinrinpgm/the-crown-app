@@ -749,6 +749,59 @@ async function saveGachaRankWeights(){
  msg.textContent=error?'保存失敗：'+error.message:'6ランクの確率を保存しました。次の抽選から適用されます。';
  if(!error)await loadGachaRankWeights();
 }
+const gachaRankPresets=[
+ [5,6,7,8,10,12],[20,21,22,23,24,25],[15,15,15,15,15,15],
+ [30,27,24,21,18,15],[5,6,7,8,9,10],[5,6,7,8,9,10],
+ [15,14,13,12,10,8],[5,5,5,5,5,5]
+];
+const gachaRankPresetNames=['エントリー5,000円引き','エントリー2,000円引き','飲み放題券','ドリンクチケット','CCリング3,000coinプレゼント（リング1時間プレイ）','リエントリー無料券','CCリング1,000coinプレゼント（リング1時間プレイ）','好きなスタッフとテキーラ乾杯券'];
+function gachaNormalize(values,total=100){
+ const sum=values.reduce((a,b)=>a+b,0);
+ if(sum<=0)return values.map(()=>0);
+ const raw=values.map(v=>v/sum*total),ints=raw.map(Math.floor);
+ let left=total-ints.reduce((a,b)=>a+b,0);
+ const order=raw.map((v,i)=>({i,frac:v-ints[i]})).sort((a,b)=>b.frac-a.frac||a.i-b.i);
+ for(let k=0;k<left;k++)ints[order[k].i]++;
+ return ints;
+}
+function gachaAutoDistribute(changedIndex){
+ const active=gachaPrizeData.map((p,i)=>({p,i})).filter(x=>x.p.active);
+ if(!active.length)return;
+ if(changedIndex!==undefined){
+  const fixed=active.find(x=>x.i===changedIndex);
+  if(fixed){
+   fixed.p.weight=Math.min(100,Math.max(0,Math.round(Number(fixed.p.weight)||0)));
+   const others=active.filter(x=>x!==fixed),remain=100-fixed.p.weight;
+   if(!others.length)fixed.p.weight=100;
+   else{
+    const allocated=gachaNormalize(others.map(x=>Math.max(0,Number(x.p.weight)||0)),remain);
+    if(allocated.every(v=>v===0)&&remain>0){
+     const even=gachaNormalize(others.map(()=>1),remain);
+     others.forEach((x,i)=>x.p.weight=even[i]);
+    }else others.forEach((x,i)=>x.p.weight=allocated[i]);
+   }
+  }
+ }else{
+  const weights=gachaNormalize(active.map(x=>Math.max(0,Number(x.p.weight)||0)));
+  if(weights.every(v=>v===0)){const even=gachaNormalize(active.map(()=>1));active.forEach((x,i)=>x.p.weight=even[i])}
+  else active.forEach((x,i)=>x.p.weight=weights[i]);
+ }
+ for(const p of gachaPrizeData)if(!p.active)p.weight=0;
+ for(let level=0;level<6;level++){
+  const factors=active.map(({p})=>{
+   const idx=gachaRankPresetNames.indexOf(p.name);
+   return idx<0?1:gachaRankPresets[idx][level]/gachaRankPresets[idx][0];
+  });
+  const allocated=gachaNormalize(active.map(({p},i)=>Number(p.weight)*factors[i]));
+  active.forEach(({p},i)=>{if(p.id!=null)gachaRankWeights[p.id+':'+level]=allocated[i]});
+ }
+ renderGachaPrizes();
+ if(gachaRankReady)renderGachaRankWeights();
+ const msg=document.getElementById('gachaMsg');
+ if(msg)msg.textContent='基本確率と6ランクの確率を自動調整しました。「変更を保存」で両方保存します。';
+}
+function gachaDefaultChanged(i,v){gachaPrizeData[i].weight=v;gachaAutoDistribute(i)}
+function gachaActiveChanged(i,v){gachaPrizeData[i].active=v;gachaAutoDistribute()}
 let gachaPrizeData=[];
 async function loadGachaPrizes(){
  const el=document.getElementById('gachaPrizeRows');el.textContent='読み込み中…';
@@ -758,7 +811,7 @@ async function loadGachaPrizes(){
 }
 function renderGachaPrizes(){
  const el=document.getElementById('gachaPrizeRows');
- el.innerHTML=gachaPrizeData.map((p,i)=>'<div class="card" style="padding:12px"><div class="row"><div style="flex:3;min-width:160px"><label class="muted">景品名</label><input value="'+esc(p.name)+'" oninput="gachaPrizeData['+i+'].name=this.value"></div><div style="flex:1;min-width:90px"><label class="muted">確率（%）</label><input type="number" min="0" max="100" step="1" value="'+Number(p.weight)+'" oninput="gachaPrizeData['+i+'].weight=Number(this.value);updateGachaTotal()"></div><div><label class="muted">抽選対象</label><div><input style="width:auto" type="checkbox" '+(p.active?'checked':'')+' onchange="gachaPrizeData['+i+'].active=this.checked;updateGachaTotal()"> ON</div></div><button class="btn2 danger" onclick="removeGachaPrize('+i+')">削除</button></div></div>').join('');
+ el.innerHTML=gachaPrizeData.map((p,i)=>'<div class="card" style="padding:12px"><div class="row"><div style="flex:3;min-width:160px"><label class="muted">景品名</label><input value="'+esc(p.name)+'" oninput="gachaPrizeData['+i+'].name=this.value"></div><div style="flex:1;min-width:90px"><label class="muted">確率（%）</label><input type="number" min="0" max="100" step="1" value="'+Number(p.weight)+'" onchange="gachaDefaultChanged('+i+',Number(this.value))"></div><div><label class="muted">抽選対象</label><div><input style="width:auto" type="checkbox" '+(p.active?'checked':'')+' onchange="gachaActiveChanged('+i+',this.checked)"> ON</div></div><button class="btn2 danger" onclick="removeGachaPrize('+i+')">削除</button></div></div>').join('');
  updateGachaTotal();
 }
 function updateGachaTotal(){
@@ -766,7 +819,7 @@ function updateGachaTotal(){
  const el=document.getElementById('gachaTotal');el.textContent='合計 '+total+'%';el.style.color=total===100?'#62e59c':'#ff8585';
 }
 function addGachaPrize(){gachaPrizeData.push({id:null,name:'新しい景品',weight:0,active:false});renderGachaPrizes()}
-function removeGachaPrize(i){gachaPrizeData.splice(i,1);renderGachaPrizes()}
+function removeGachaPrize(i){gachaPrizeData.splice(i,1);gachaAutoDistribute()}
 async function saveGachaPrizes(){
  const msg=document.getElementById('gachaMsg');
  const total=gachaPrizeData.reduce((n,p)=>n+(p.active?Number(p.weight)||0:0),0);
@@ -774,8 +827,21 @@ async function saveGachaPrizes(){
  if(!confirm('ガチャ景品の設定を保存しますか？'))return;
  msg.textContent='保存中…';
  const {error}=await sb.rpc('gacha_manage_prizes',{p_items:gachaPrizeData.map(p=>({id:p.id||null,name:p.name,weight:Number(p.weight),active:!!p.active}))});
- if(error){msg.textContent='保存失敗：'+error.message;return}
- msg.textContent='保存しました。次の抽選から反映されます。';await loadGachaPrizes();
+ if(error){msg.textContent='基本確率の保存失敗：'+error.message;return}
+ const rankWeights={...gachaRankWeights};
+ const {data:fresh,error:readError}=await sb.rpc('gacha_staff_prizes');
+ if(readError){msg.textContent='基本確率を保存しましたがランク別の取得に失敗：'+readError.message;return}
+ gachaPrizeData=(fresh||[]).map(x=>({...x}));
+ for(let level=0;level<6;level++){
+  const active=gachaPrizeData.filter(p=>p.active);
+  const factors=active.map(p=>{const idx=gachaRankPresetNames.indexOf(p.name);return idx<0?1:gachaRankPresets[idx][level]/gachaRankPresets[idx][0]});
+  const alloc=gachaNormalize(active.map((p,i)=>p.weight*factors[i]));
+  active.forEach((p,i)=>rankWeights[p.id+':'+level]=alloc[i]);
+ }
+ const items=gachaPrizeData.flatMap(p=>gachaRankNames.map((_,level)=>({prize_id:p.id,rank_level:level,weight:p.active?Number(rankWeights[p.id+':'+level]??0):0})));
+ const {error:rankError}=await sb.rpc('gacha_rank_weights_save',{p_items:items});
+ if(rankError){msg.textContent='基本確率は保存しましたがランク別保存に失敗：'+rankError.message;return}
+ msg.textContent='基本確率と6ランクの確率を保存しました。';await loadGachaPrizes();
 }
 async function loadGachaDraws(){
  const el=document.getElementById('gachaDrawRows');el.textContent='読み込み中…';
