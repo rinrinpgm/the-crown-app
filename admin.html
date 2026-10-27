@@ -807,7 +807,7 @@ async function loadGachaPrizes(){
  const el=document.getElementById('gachaPrizeRows');el.textContent='読み込み中…';
  const {data,error}=await sb.rpc('gacha_staff_prizes');
  if(error){el.textContent='SQL設定を確認してください：'+error.message;return}
- gachaPrizeData=(data||[]).map(x=>({...x}));renderGachaPrizes();await loadGachaRankWeights();
+ gachaPrizeData=(data||[]).filter(x=>x.active).map(x=>({...x}));renderGachaPrizes();await loadGachaRankWeights();
 }
 function renderGachaPrizes(){
  const el=document.getElementById('gachaPrizeRows');
