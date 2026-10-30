@@ -826,8 +826,9 @@ async function loadGachaDraws(){
  const el=document.getElementById('gachaDrawRows');el.textContent='読み込み中…';
  const {data,error}=await sb.rpc('gacha_staff_draws');
  if(error){el.textContent='取得できません：'+error.message;return}
- if(!data?.length){el.textContent='当選履歴はまだありません。';return}
- el.innerHTML=data.map(d=>{
+ const current=(data||[]).filter(d=>new Date(d.expires_at).getTime()>Date.now());
+ if(!current.length){el.textContent='本日有効なガチャの当選履歴はありません。';return}
+ el.innerHTML=current.map(d=>{
  const expired=new Date(d.expires_at)<new Date(),status=d.used_at?'使用済み':expired?'期限切れ':'利用可能';
  return '<div class="card" style="padding:12px"><div class="row"><div><b>'+esc(d.member_name)+'</b> <span class="muted">#'+esc(d.member_number)+'</span><div class="gold">'+esc(d.prize_name)+'</div><div class="muted">当選：'+new Date(d.drawn_at).toLocaleString('ja-JP')+' ／ 期限：'+new Date(d.expires_at).toLocaleString('ja-JP')+'</div></div><div><b>'+status+'</b> '+(!d.used_at&&!expired?'<button class="btn2" onclick="redeemGacha(\''+d.id+'\')">使用済みにする</button>':'')+'</div></div></div>'
  }).join('');
