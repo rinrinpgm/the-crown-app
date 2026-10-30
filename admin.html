@@ -10,7 +10,7 @@
 <div id="gachaTab" class="hidden">
 <div class="card"><h3>🎰 デイリーガチャ 景品設定</h3><p class="muted">景品名・当選確率・有効/無効を編集できます。確率は有効な景品の合計が100%になるよう設定してください。無効化した景品の当選履歴は残ります。</p>
 <div class="card" style="padding:14px;margin:12px 0"><h3>👑 ランク別当選確率</h3><p class="muted">ランクごとに8景品の確率を設定できます。各ランクの合計を100%にして保存してください。抽選は獲得済み最高ランクを使用します。</p><div class="row" style="flex-wrap:wrap;gap:6px" id="gachaRankTabs"></div><div id="gachaRankRows"></div><div class="row"><b id="gachaRankTotal">合計 —</b><button class="btn" onclick="saveGachaRankWeights()">ランク別確率を保存</button></div><div id="gachaRankMsg" class="muted"></div></div><div id="gachaPrizeRows"></div><div class="row"><button class="btn2" onclick="addGachaPrize()">＋ 景品を追加</button><b id="gachaTotal">合計 0%</b><button class="btn" onclick="saveGachaPrizes()">変更を保存</button></div><div id="gachaMsg" class="muted" style="margin-top:10px"></div></div>
-<div class="card"><div class="row"><h3>当選履歴・使用済み処理</h3><button class="btn2" onclick="loadGachaDraws()">更新</button></div><div id="gachaDrawRows" class="muted">読み込み中…</div></div></div>
+<div class="card"><div class="row"><h3>本日のガチャ当選集計</h3><button class="btn2" onclick="loadGachaDraws()">更新</button></div><div id="gachaDrawRows" class="muted">読み込み中…</div></div></div>
 <div id="ringTab"><div class="card"><div class="row"><div><h3>クイックOPEN</h3><p class="muted">ワンタップで卓を作成</p></div><button class="btn2" onclick="loadRing()">更新</button></div><div class="row"><button class="btn quickBtn" onclick="quick('NLH','50/100',10,5)">50/100 NLH</button><button class="btn quickBtn" onclick="quick('NLH','100/200',10,3)">100/200 NLH</button><button class="btn quickBtn" onclick="quick('MIX','',10,3)">MIX</button></div><div id="msg"></div></div><div id="rings"></div></div>
 <div id="ratingTab" class="hidden">
 <div class="card">
@@ -828,9 +828,17 @@ async function loadGachaDraws(){
  if(error){el.textContent='取得できません：'+error.message;return}
  const current=(data||[]).filter(d=>new Date(d.expires_at).getTime()>Date.now());
  if(!current.length){el.textContent='本日有効なガチャの当選履歴はありません。';return}
- el.innerHTML=current.map(d=>{
- const expired=new Date(d.expires_at)<new Date(),status=d.used_at?'使用済み':expired?'期限切れ':'利用可能';
- return '<div class="card" style="padding:12px"><div class="row"><div><b>'+esc(d.member_name)+'</b> <span class="muted">#'+esc(d.member_number)+'</span><div class="gold">'+esc(d.prize_name)+'</div><div class="muted">当選：'+new Date(d.drawn_at).toLocaleString('ja-JP')+' ／ 期限：'+new Date(d.expires_at).toLocaleString('ja-JP')+'</div></div><div><b>'+status+'</b> '+(!d.used_at&&!expired?'<button class="btn2" onclick="redeemGacha(\''+d.id+'\')">使用済みにする</button>':'')+'</div></div></div>'
+ const groups=new Map();
+ for(const d of current){
+  const key=String(d.prize_name||'名称未設定');
+  if(!groups.has(key))groups.set(key,[]);
+  groups.get(key).push(d);
+ }
+ const total=current.length,used=current.filter(d=>!!d.used_at).length;
+ const summary='<div class="row" style="flex-wrap:wrap;gap:12px;margin:12px 0 18px"><b class="gold">本日の当選者 '+total+'人</b><span>使用済み '+used+'人</span><span>未使用 '+(total-used)+'人</span></div>';
+ el.innerHTML=summary+[...groups.entries()].sort((a,b)=>b[1].length-a[1].length).map(([prize,people])=>{
+  const usedCount=people.filter(d=>!!d.used_at).length;
+  return '<details class="card" style="padding:14px;margin:10px 0"><summary style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><b class="gold">'+esc(prize)+'</b><span><b>'+people.length+'人</b> <span class="muted">（使用済み '+usedCount+'人）</span>　▼</span></summary><div style="margin-top:12px;border-top:1px solid #41351f;padding-top:8px">'+people.map(d=>'<div class="row" style="padding:9px 3px;border-bottom:1px solid #30291c;gap:8px"><span>'+esc(d.member_name)+' <small class="muted">#'+esc(d.member_number)+'</small></span><span class="'+(d.used_at?'muted':'gold')+'">'+(d.used_at?'使用済み':'未使用')+'</span></div>').join('')+'</div></details>';
  }).join('');
 }
 async function redeemGacha(id){
